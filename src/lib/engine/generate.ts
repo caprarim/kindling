@@ -394,6 +394,26 @@ export function poolSize(p: Profile): number {
   return focuses * audiences * MECHANICS.length * TWISTS.length;
 }
 
+/**
+ * How many already-seen ideas fall inside *this* profile's pool.
+ *
+ * The seen list spans every set of answers a person has ever given, so
+ * subtracting it wholesale from the current pool understates what's left —
+ * badly, after someone changes their answers. Only fingerprints this profile
+ * could actually draw are counted.
+ */
+export function countSeenInPool(p: Profile, seen: Iterable<string>): number {
+  const focuses = new Set(focusPool(p).map((f) => `${f.domain}.${f.focus}`));
+  const audiences = new Set(focusPool(p).flatMap((f) => audiencePool(p, f.domain)));
+
+  let n = 0;
+  for (const id of seen) {
+    const [domain, focus, audience] = id.split(".");
+    if (focuses.has(`${domain}.${focus}`) && audiences.has(audience)) n++;
+  }
+  return n;
+}
+
 export function motivationLabel(id: string): string {
   return MOTIVATIONS.find((m) => m.id === id)?.label ?? id;
 }

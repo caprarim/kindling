@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { IdeaCard } from "@/components/idea-card";
 import { AuthDialog } from "@/components/auth-dialog";
 import { useKindling } from "@/lib/store";
-import { poolSize } from "@/lib/engine/generate";
+import { countSeenInPool, poolSize } from "@/lib/engine/generate";
 import { DOMAIN_BY_ID } from "@/lib/engine/taxonomy";
 import { effectiveDomains } from "@/lib/engine/questions";
 
@@ -23,7 +23,7 @@ export default function IdeasPage() {
     profile,
     batch,
     saved,
-    seenCount,
+    seen,
     generating,
     exhausted,
     generate,
@@ -52,7 +52,8 @@ export default function IdeasPage() {
     .slice(0, 3)
     .map((id) => DOMAIN_BY_ID.get(id)?.label)
     .filter(Boolean) as string[];
-  const remaining = Math.max(0, poolSize(profile) - seenCount);
+  // Only ideas this profile could actually draw count against its own pool.
+  const remaining = Math.max(0, poolSize(profile) - countSeenInPool(profile, seen));
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:py-14">

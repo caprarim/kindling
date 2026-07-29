@@ -12,6 +12,7 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { generateIdeas } from "./engine/generate";
 import { nextQuestion } from "./engine/questions";
+import { blankValue } from "./engine/summary";
 import { emptyProfile, type Idea, type Profile, type Question } from "./engine/types";
 import { isSupabaseConfigured, supabase } from "./supabase";
 
@@ -50,6 +51,7 @@ type Ctx = {
   question: Question | null;
   batch: Idea[];
   saved: Idea[];
+  seen: string[];
   seenCount: number;
   exhausted: boolean;
   generating: boolean;
@@ -58,6 +60,7 @@ type Ctx = {
   cloudEnabled: boolean;
   answer: (q: Question, value: string | string[]) => void;
   skip: (q: Question) => void;
+  reopen: (field: keyof Profile, questionIds: string[]) => void;
   back: () => void;
   restart: () => void;
   generate: () => void;
@@ -199,20 +202,49 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
     setGenerating(true);
     // Yield a frame so the loading state is visible on fast machines.
     setTimeout(() => {
-      setState((s) => {
-        const seen = new Set(s.seen);
-        const { ideas, exhausted: ex } = generateIdeas(s.profile, seen, 6, String(Date.now()));
-        setExhausted(ex);
-        const nextSeen = [...seen, ...ideas.map((i) => i.id)];
-        void pushRemote(
-          "seen_ideas",
-          session?.user ? ideas.map((i) => ({ user_id: session.user.id, idea_id: i.id })) : [],
+      // Generation happens outside the state updater: updaters must stay pure,
+      // and React double-invokes them in development.
+      setState((current) => {
+        const seen = new Set(current.seen);
+        const { ideas, exhausted: ex } = generateIdeas(
+          current.profile,
+          seen,
+          6,
+          String(Date.now()),
         );
-        return { ...s, batch: ideas, seen: [...new Set(nextSeen)] };
+        queueMicrotask(() => {
+          setExhausted(ex);
+          if (session?.user) {
+            void pushRemote(
+              "seen_ideas",
+              ideas.map((i) => ({ user_id: session.user.id, idea_id: i.id })),
+            );
+          }
+        });
+        return {
+          ...current,
+          batch: ideas,
+          seen: [...new Set([...seen, ...ideas.map((i) => i.id)])],
+        };
       });
       setGenerating(false);
     }, 260);
   }, [pushRemote, session]);
+
+  /** Clear one answer so the engine asks that question again. */
+  const reopen = useCallback((field: keyof Profile, questionIds: string[]) => {
+    setState((s) => {
+      history.current = [...history.current, s.profile];
+      return {
+        ...s,
+        profile: {
+          ...s.profile,
+          [field]: blankValue(field),
+          skipped: s.profile.skipped.filter((id) => !questionIds.includes(id)),
+        } as Profile,
+      };
+    });
+  }, []);
 
   const isSaved = useCallback((id: string) => state.saved.some((i) => i.id === id), [state.saved]);
 
@@ -265,6 +297,7 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
     question,
     batch: state.batch,
     saved: state.saved,
+    seen: state.seen,
     seenCount: state.seen.length,
     exhausted,
     generating,
@@ -273,6 +306,7 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
     cloudEnabled: isSupabaseConfigured,
     answer,
     skip,
+    reopen,
     back,
     restart,
     generate,
