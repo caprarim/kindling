@@ -484,7 +484,7 @@ export const MECHANICS: Mechanic[] = [
     surfaces: ["web", "mobile", "cli"],
     steps: [
       "Design one screen that answers 'how am I doing?' in a single glance.",
-      "Make logging an entry take under five seconds — one tap, no forms.",
+      "Make logging an entry take under five seconds: one tap, no forms.",
       "Store everything locally first so it works before any account exists.",
     ],
     stretch: "Add a weekly review that shows the one number that moved most.",
@@ -510,7 +510,7 @@ export const MECHANICS: Mechanic[] = [
     surfaces: ["web", "mobile"],
     steps: [
       "Define what a good match means in one honest sentence.",
-      "Build the input side first — a form that captures what someone needs.",
+      "Build the input side first: a form that captures what someone needs.",
       "Fake the matching by hand for ten users before you automate it.",
     ],
     stretch: "Show the reasoning behind each match so people can correct it.",
@@ -522,7 +522,7 @@ export const MECHANICS: Mechanic[] = [
     weight: 1,
     surfaces: ["web", "mobile", "desktop"],
     steps: [
-      "Model one week, not one year — the short horizon is the whole product.",
+      "Model one week, not one year. The short horizon is the whole product.",
       "Make rearranging feel physical: drag, drop, undo.",
       "Add a 'this went wrong' path, because plans always break.",
     ],
@@ -548,7 +548,7 @@ export const MECHANICS: Mechanic[] = [
     weight: 0,
     surfaces: ["web", "mobile"],
     steps: [
-      "Decide exactly when it speaks — the timing is the product.",
+      "Decide exactly when it speaks. The timing is the product.",
       "Write ten messages by hand and read them out loud. Cut the smug ones.",
       "Give people one tap to say 'not now' and have it genuinely listen.",
     ],
@@ -561,7 +561,7 @@ export const MECHANICS: Mechanic[] = [
     weight: 1,
     surfaces: ["web", "desktop"],
     steps: [
-      "Nail search and filtering before anything else — that's the whole value.",
+      "Nail search and filtering before anything else. That's the whole value.",
       "Make adding an item nearly free, or the library will stay empty.",
       "Seed it with a hundred real entries so day one doesn't feel dead.",
     ],
@@ -601,7 +601,7 @@ export const MECHANICS: Mechanic[] = [
     surfaces: ["web", "desktop", "data"],
     steps: [
       "Start with three sliders and one output number.",
-      "Be explicit about the assumptions — show them on screen.",
+      "Be explicit about the assumptions: show them on screen.",
       "Make a wrong answer obviously wrong, so people trust the right ones.",
     ],
     stretch: "Save scenarios side by side so two futures can be compared.",
@@ -641,7 +641,7 @@ export const MECHANICS: Mechanic[] = [
     steps: [
       "Solve one side of the market first, by hand, in one neighbourhood.",
       "Build listings and messaging; skip payments until people ask.",
-      "Set the trust rules early — they're harder to add later.",
+      "Set the trust rules early, they're harder to add later.",
     ],
     stretch: "Add a light reputation signal that can't be gamed in a week.",
   },
@@ -653,7 +653,7 @@ export const MECHANICS: Mechanic[] = [
     surfaces: ["web", "desktop", "mobile"],
     steps: [
       "Get one input in and one transformed output back. Nothing else.",
-      "Make the transformation visible — show before and after together.",
+      "Make the transformation visible: show before and after together.",
       "Allow undo everywhere; people experiment when it's safe to.",
     ],
     stretch: "Chain two transformations and save the chain as a preset.",

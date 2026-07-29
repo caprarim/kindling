@@ -102,7 +102,7 @@ function surfaceChoices(p: Profile): Choice[] {
   return scored.map(({ s }) => ({
     id: s.id,
     label: s.label,
-    hint: fromSkills.has(s.id) ? `${s.hint} — plays to what you picked` : s.hint,
+    hint: fromSkills.has(s.id) ? `${s.hint} (plays to what you picked)` : s.hint,
   }));
 }
 
@@ -113,7 +113,7 @@ function skillChoices(p: Profile): Choice[] {
     id: s.id,
     label: s.label,
     hint: s.hint,
-    ...(d && s.id === "frontend" ? { hint: `${s.hint} — useful for anything ${d.label.toLowerCase()}` } : {}),
+    ...(d && s.id === "frontend" ? { hint: `${s.hint} (useful for anything ${d.label.toLowerCase()})` } : {}),
   }));
 }
 
@@ -157,7 +157,7 @@ export function nextQuestion(p: Profile): Question | null {
         field: "ideaText",
         kind: "text",
         progress: 1 / TOTAL_STEPS,
-        title: "So — what do you want to build?",
+        title: "So, what do you want to build?",
         subtitle: "A sentence is plenty. Rough and half-formed is exactly right.",
         placeholder: "e.g. something that helps me stop wasting food in the fridge",
       };
@@ -176,7 +176,7 @@ export function nextQuestion(p: Profile): Question | null {
           title: `That reads like ${names[0]} to us.`,
           subtitle: "We've pre-selected what we picked up. Change it if we've misread you.",
           choices: domainChoices().map((c) =>
-            detected.includes(c.id) ? { ...c, hint: `${c.hint} — matched your description` } : c,
+            detected.includes(c.id) ? { ...c, hint: `${c.hint} (matched your description)` } : c,
           ),
           escape: { label: "None of these fit", hint: "We'll go wider instead" },
         };
@@ -223,7 +223,7 @@ export function nextQuestion(p: Profile): Question | null {
         max: 3,
         progress: 1 / TOTAL_STEPS,
         title: "Forget building for a second. What are you into?",
-        subtitle: "Not what you're good at — what you'd read about on a slow evening.",
+        subtitle: "Not what you're good at. What you'd read about on a slow evening.",
         choices: domainChoices(),
         escape: {
           label: "Honestly, none of these",
@@ -240,12 +240,12 @@ export function nextQuestion(p: Profile): Question | null {
         min: 1,
         max: 4,
         progress: 2 / TOTAL_STEPS,
-        title: "Alright — what can you do, or want to be able to do?",
+        title: "Alright, what can you do, or want to be able to do?",
         subtitle: "Wanting to learn it counts exactly as much as already knowing it.",
         choices: SKILL_AREAS.map((s) => ({ id: s.id, label: s.label, hint: s.hint })),
         escape: {
           label: "I don't have any skills yet",
-          hint: "Genuinely fine — that's a normal place to start",
+          hint: "Genuinely fine, that's a normal place to start",
         },
       };
     }
@@ -287,7 +287,7 @@ export function nextQuestion(p: Profile): Question | null {
         max: 2,
         progress: 4 / TOTAL_STEPS,
         title: "Last one, and it's pure gut feeling.",
-        subtitle: "Pick the two that appeal most. Don't overthink it — there's nothing to get right.",
+        subtitle: "Pick the two that appeal most. Don't overthink it, there's nothing to get right.",
         choices: VIBES.map((v) => ({ id: v.id, label: v.label, hint: v.hint })),
       };
     }

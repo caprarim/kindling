@@ -190,9 +190,9 @@ function whyFor(
     const said = p.ideaText.trim().slice(0, 90);
     anchor = pick(
       [
-        `You described wanting "${said}" — this is a sharper version of that thought.`,
+        `You described wanting "${said}", and this is a sharper version of that thought.`,
         `This came from what you wrote: "${said}".`,
-        `Take "${said}" and give it edges — that's this.`,
+        `Take "${said}" and give it edges. That's this.`,
       ],
       r,
     );
@@ -231,7 +231,7 @@ function whyFor(
     pool.push("Nothing here needs a framework you haven't met yet.");
   } else if (p.skillLevel === "strong") {
     pool.push("The obvious version is easy, so the interesting work is in the part you'd enjoy.");
-    pool.push(`A ${mechanicLabel.toLowerCase()} is a solved shape — which frees you to make the twist the point.`);
+    pool.push(`A ${mechanicLabel.toLowerCase()} is a solved shape, which frees you to make the twist the point.`);
   } else if (p.skills.length) {
     const s = SKILL_AREAS.find((x) => x.id === p.skills[0]);
     if (s) pool.push(`It leans on ${s.label.toLowerCase()}, which you said you've got or want.`);
@@ -262,7 +262,7 @@ function whyFor(
   }
 
   // Something specific to *this* idea, so no two cards argue the same way.
-  pool.push(`The constraint — ${twistClause.replace(/^and /, "")} — is what stops it being generic.`);
+  pool.push(`The constraint, ${twistClause.replace(/^and /, "")}, is what stops it being generic.`);
   if (difficulty === "Gentle") pool.push("You could have something on screen tonight.");
   if (difficulty === "Ambitious") pool.push("It's the most demanding thing on this list, deliberately.");
 

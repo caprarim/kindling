@@ -15,7 +15,7 @@ const display = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Kindling — find a project worth building",
+  title: "Kindling, find a project worth building",
   description:
     "Answer a few questions and get project ideas shaped around what you're into, what you can do, and how much time you've got. No account needed, and you'll never see the same idea twice.",
   applicationName: "Kindling",
@@ -54,7 +54,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className="ember-wash flex min-h-full flex-col">
+      <body className="flex min-h-full flex-col bg-background">
         <KindlingProvider>
           <TooltipProvider>
             <Toaster>

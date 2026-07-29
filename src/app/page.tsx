@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowRightIcon, BookmarkIcon, ShuffleIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { ChoiceGrid } from "@/components/choice-grid";
 import { Mark } from "@/components/logo";
 import { useKindling } from "@/lib/store";
@@ -30,39 +29,51 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-12 px-4 py-14 sm:py-20">
-      <header className="flex flex-col items-start gap-5">
-        <Badge variant="secondary" className="h-6 gap-1.5">
-          <SparklesIcon />
-          No account needed to use any of this
-        </Badge>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-10 sm:gap-14 sm:py-16 lg:py-20">
+      <header className="relative isolate overflow-hidden rounded-3xl border border-border/70 px-5 py-8 sm:px-9 sm:py-12">
+        <div className="ember-wash pointer-events-none absolute inset-0 -z-10" aria-hidden />
 
-        <h1 className="font-heading text-4xl leading-[1.05] font-semibold tracking-tight text-balance sm:text-6xl">
-          Find a project <span className="text-ember">worth building</span>.
-        </h1>
+        <div className="flex flex-col items-start gap-5">
+          <h1 className="font-heading text-[2rem] leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
+            Find a project <span className="text-ember">worth building</span>.
+          </h1>
 
-        <p className="max-w-xl text-lg/relaxed text-muted-foreground text-pretty">
-          Answer a handful of questions — each one shaped by the last — and get ideas built around
-          what you&rsquo;re into, what you can already do, and how much time you actually have.
-        </p>
+          <p className="max-w-xl text-base/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
+            Answer a handful of questions, each one shaped by the last, and get ideas built around
+            what you&rsquo;re into, what you can already do, and how much time you actually have.
+          </p>
+
+          <p className="text-sm text-muted-foreground">No account needed to use any of this.</p>
+        </div>
       </header>
 
       <section className="flex flex-col gap-5">
         <div className="flex items-center gap-3">
-          <Mark className="size-6 text-primary" />
-          <h2 className="font-heading text-xl font-semibold tracking-tight">{first.title}</h2>
+          <Mark className="size-6 shrink-0 text-primary" />
+          <h2 className="font-heading text-lg font-semibold tracking-tight sm:text-xl">
+            {first.title}
+          </h2>
         </div>
-        <p className="-mt-3 text-muted-foreground">{first.subtitle}</p>
+        <p className="-mt-3 text-sm text-muted-foreground text-pretty sm:text-base">
+          {first.subtitle}
+        </p>
 
         <ChoiceGrid choices={first.choices ?? []} value={[]} onChange={choose} columns={1} />
 
         {inProgress ? (
-          <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-4">
-            <p className="flex-1 text-sm/relaxed text-muted-foreground text-pretty">
-              You&rsquo;ve already started. Pick up where you left off, or choose again above to
-              begin fresh.
-            </p>
-            <Button size="sm" render={<Link href="/start" />}>
+          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm ring-1 ring-black/[0.02] sm:flex-row sm:items-center sm:gap-5 sm:p-6">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+              <SparklesIcon className="size-5" />
+            </span>
+            <div className="flex-1 space-y-1">
+              <p className="text-[0.95rem] font-medium tracking-tight text-card-foreground">
+                You&rsquo;ve already started
+              </p>
+              <p className="text-sm/relaxed text-muted-foreground text-pretty">
+                Pick up where you left off, or choose again above to begin fresh.
+              </p>
+            </div>
+            <Button size="lg" className="w-full sm:w-auto" render={<Link href="/start" />}>
               Continue
               <ArrowRightIcon data-icon="inline-end" />
             </Button>
@@ -70,11 +81,11 @@ export default function Home() {
         ) : null}
       </section>
 
-      <section className="grid gap-6 border-t border-border/60 pt-10 sm:grid-cols-3">
+      <section className="grid gap-7 border-t border-border/60 pt-10 sm:grid-cols-3 sm:gap-6">
         <Feature
           icon={<ShuffleIcon className="size-4" />}
           title="Never the same idea twice"
-          body="Every idea gets a fingerprint. Once you've seen it, it's retired — permanently, even across sessions."
+          body="Every idea gets a fingerprint. Once you've seen it, it's retired for good, even across sessions."
         />
         <Feature
           icon={<SparklesIcon className="size-4" />}
@@ -105,7 +116,7 @@ export default function Home() {
 function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <div className="flex flex-col gap-2">
-      <span className="flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
+      <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
         {icon}
       </span>
       <h3 className="font-heading font-medium tracking-tight">{title}</h3>

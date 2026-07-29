@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookmarkIcon, CloudIcon, SparklesIcon } from "lucide-react";
+import { BookmarkIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Empty,
@@ -11,13 +11,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { IdeaCard } from "@/components/idea-card";
-import { AuthDialog } from "@/components/auth-dialog";
 import { useKindling } from "@/lib/store";
 
 export default function LibraryPage() {
-  const { ready, saved, removeSaved, token, cloudEnabled } = useKindling();
+  const { ready, saved, removeSaved, token } = useKindling();
 
   if (!ready) return null;
 
@@ -29,26 +27,10 @@ export default function LibraryPage() {
         </h1>
         <p className="text-muted-foreground text-pretty">
           {saved.length
-            ? `${saved.length} ${saved.length === 1 ? "idea" : "ideas"} kept.${token ? " Stored on the server, so they're on every device you use." : " Make an account and they move onto the server."}`
+            ? `${saved.length} ${saved.length === 1 ? "idea" : "ideas"} kept.${token ? " Stored on the server, so they're on every device you use." : ""}`
             : "Ideas you save land here."}
         </p>
       </div>
-
-      {saved.length && !token && cloudEnabled ? (
-        <Alert>
-          <CloudIcon />
-          <AlertTitle>These live on this device only</AlertTitle>
-          <AlertDescription className="flex flex-col items-start gap-3">
-            Make an account and every one of them moves onto the server — along with the record of
-            what you&rsquo;ve already been shown.
-            <AuthDialog>
-              <Button size="sm" variant="outline">
-                Keep them safe
-              </Button>
-            </AuthDialog>
-          </AlertDescription>
-        </Alert>
-      ) : null}
 
       {saved.length ? (
         <div className="grid items-start gap-5 md:grid-cols-2">

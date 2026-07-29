@@ -14,7 +14,7 @@ export const dynamic = "force-static";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Kindling — find a project worth building",
+    name: "Kindling, find a project worth building",
     short_name: "Kindling",
     description:
       "Adaptive questions that hand back project ideas shaped around you. Never the same idea twice.",

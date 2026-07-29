@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { InfoIcon, PencilIcon, RefreshCwIcon, RotateCcwIcon } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { IdeaCard } from "@/components/idea-card";
-import { AuthDialog } from "@/components/auth-dialog";
 import { useKindling } from "@/lib/store";
 import { countSeenInPool, poolSize } from "@/lib/engine/generate";
 import { DOMAIN_BY_ID } from "@/lib/engine/taxonomy";
@@ -18,33 +16,12 @@ import { effectiveDomains } from "@/lib/engine/questions";
 
 export default function IdeasPage() {
   const router = useRouter();
-  const {
-    ready,
-    profile,
-    batch,
-    saved,
-    seen,
-    generating,
-    exhausted,
-    generate,
-    restart,
-    token,
-    cloudEnabled,
-  } = useKindling();
-  const [promptedAt, setPromptedAt] = useState(0);
-  const [authOpen, setAuthOpen] = useState(false);
+  const { ready, profile, batch, seen, generating, exhausted, generate, restart } = useKindling();
 
   // Someone who lands here cold has no profile yet — send them to the start.
   useEffect(() => {
     if (ready && !profile.path) router.replace("/");
   }, [ready, profile.path, router]);
-
-  // One gentle nudge, the third time something is saved. Never again after that.
-  useEffect(() => {
-    if (!cloudEnabled || token || saved.length < 3 || promptedAt) return;
-    setPromptedAt(saved.length);
-    setAuthOpen(true);
-  }, [saved.length, token, cloudEnabled, promptedAt]);
 
   if (!ready || !profile.path) return null;
 
@@ -68,8 +45,8 @@ export default function IdeasPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={generate} disabled={generating}>
+          <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+            <Button className="flex-1 sm:flex-none" onClick={generate} disabled={generating}>
               {generating ? (
                 <Spinner data-icon="inline-start" />
               ) : (
@@ -88,18 +65,17 @@ export default function IdeasPage() {
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {domains.map((d) => (
-            <Badge key={d} variant="secondary">
-              {d}
-            </Badge>
-          ))}
-          {profile.timeBudget ? <Badge variant="outline">{timeLabel(profile.timeBudget)}</Badge> : null}
-          {profile.skillLevel ? <Badge variant="outline">{skillLabel(profile.skillLevel)}</Badge> : null}
-          <span className="text-sm text-muted-foreground">
-            {remaining.toLocaleString()} unseen combinations left for these answers
-          </span>
-        </div>
+        <p className="text-sm text-muted-foreground text-pretty">
+          {[
+            ...domains,
+            profile.timeBudget ? timeLabel(profile.timeBudget) : null,
+            profile.skillLevel ? skillLabel(profile.skillLevel) : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
+          {domains.length || profile.timeBudget || profile.skillLevel ? " · " : ""}
+          {remaining.toLocaleString()} unseen combinations left for these answers
+        </p>
       </div>
 
       {exhausted ? (
@@ -134,8 +110,6 @@ export default function IdeasPage() {
           Show me six completely different ones
         </Button>
       </div>
-
-      <AuthDialog open={authOpen} onOpenChange={setAuthOpen} />
     </div>
   );
 }

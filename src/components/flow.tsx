@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon, PencilIcon, RotateCcwIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
@@ -141,31 +140,46 @@ export function Flow() {
           </p>
         ) : null}
 
-        <div className="flex flex-wrap items-center gap-3">
-          <Button size="lg" onClick={submit} disabled={!canContinue}>
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <Button
+            size="lg"
+            onClick={submit}
+            disabled={!canContinue}
+            className="h-13 w-full px-8 text-base font-medium sm:w-auto"
+          >
             Continue
             <ArrowRightIcon data-icon="inline-end" />
           </Button>
 
           {canGoBack ? (
-            <Button variant="ghost" size="lg" onClick={back}>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={back}
+              className="h-13 w-full px-7 text-base font-medium sm:w-auto"
+            >
               <ArrowLeftIcon data-icon="inline-start" />
               Back
             </Button>
           ) : null}
 
-          <div className="flex-1" />
+          <div className="hidden flex-1 sm:block" />
 
           {question.escape ? (
-            <Button variant="link" onClick={() => skip(question)} className="px-0">
-              {question.escape.label}
-            </Button>
+            <div className="flex flex-col gap-1 sm:items-end">
+              <Button
+                variant="link"
+                onClick={() => skip(question)}
+                className="h-auto justify-start px-0 text-base sm:justify-end"
+              >
+                {question.escape.label}
+              </Button>
+              {question.escape.hint ? (
+                <p className="text-xs text-muted-foreground">{question.escape.hint}</p>
+              ) : null}
+            </div>
           ) : null}
         </div>
-
-        {question.escape?.hint ? (
-          <p className="-mt-4 text-right text-xs text-muted-foreground">{question.escape.hint}</p>
-        ) : null}
       </div>
     </div>
   );
@@ -188,7 +202,7 @@ function Review() {
           Here&rsquo;s what you told us
         </h1>
         <p className="text-base/relaxed text-muted-foreground text-pretty">
-          Change any one of these and we&rsquo;ll ask that question again — the ones after it
+          Change any one of these and we&rsquo;ll ask that question again. The ones after it
           rebuild around your new answer.
         </p>
       </div>
@@ -197,18 +211,15 @@ function Review() {
         {answers.map((answer, i) => (
           <div key={String(answer.field)}>
             {i > 0 ? <Separator /> : null}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 p-4">
-              <p className="w-32 shrink-0 text-sm font-medium">{answer.label}</p>
-              <div className="flex flex-1 flex-wrap gap-1.5">
-                {answer.values.map((v) => (
-                  <Badge key={v} variant="secondary" className="h-auto py-1 text-wrap">
-                    {v}
-                  </Badge>
-                ))}
-              </div>
+            <div className="flex flex-col gap-x-4 gap-y-2 p-4 sm:flex-row sm:flex-wrap sm:items-center">
+              <p className="shrink-0 text-sm font-medium sm:w-32">{answer.label}</p>
+              <p className="flex-1 text-sm text-muted-foreground text-pretty">
+                {answer.values.join(", ")}
+              </p>
               <Button
                 variant="ghost"
                 size="sm"
+                className="self-start sm:self-auto"
                 onClick={() => reopen(answer.field, answer.questionIds)}
               >
                 <PencilIcon data-icon="inline-start" />
@@ -219,9 +230,10 @@ function Review() {
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button
           size="lg"
+          className="h-13 w-full px-8 text-base font-medium sm:w-auto"
           onClick={() => {
             generate();
             router.push("/ideas");
@@ -231,8 +243,9 @@ function Review() {
           Six fresh ideas
         </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="lg"
+          className="h-13 w-full px-7 text-base font-medium sm:w-auto"
           onClick={() => {
             restart();
             router.push("/");

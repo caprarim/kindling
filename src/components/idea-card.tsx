@@ -1,7 +1,6 @@
 "use client";
 
 import { BookmarkIcon, ClockIcon, Trash2Icon, WrenchIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,10 +16,10 @@ import { useKindling } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type { Idea } from "@/lib/engine/types";
 
-const DIFFICULTY_VARIANT = {
-  Gentle: "secondary",
-  Moderate: "outline",
-  Ambitious: "default",
+const DIFFICULTY_TONE = {
+  Gentle: "text-muted-foreground",
+  Moderate: "text-foreground",
+  Ambitious: "text-primary",
 } as const;
 
 export function IdeaCard({
@@ -46,7 +45,9 @@ export function IdeaCard({
           {idea.pitch}
         </CardDescription>
         <CardAction>
-          <Badge variant={DIFFICULTY_VARIANT[idea.difficulty]}>{idea.difficulty}</Badge>
+          <span className={cn("text-xs font-medium tracking-wide uppercase", DIFFICULTY_TONE[idea.difficulty])}>
+            {idea.difficulty}
+          </span>
         </CardAction>
       </CardHeader>
 
@@ -90,13 +91,7 @@ export function IdeaCard({
           </span>
         </div>
 
-        <div className="flex flex-wrap gap-1.5">
-          {idea.tags.map((tag) => (
-            <Badge key={tag} variant="outline" className="font-normal">
-              {tag}
-            </Badge>
-          ))}
-        </div>
+        <p className="text-sm text-muted-foreground text-pretty">{idea.tags.join(" · ")}</p>
       </CardContent>
 
       <CardFooter className="gap-2">

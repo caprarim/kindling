@@ -175,6 +175,15 @@
     background-clip: text;
     color: transparent;
   }
+
+  .dark .text-ember {
+    background-image: linear-gradient(
+      100deg,
+      var(--ember-hot),
+      var(--ember-glow) 55%,
+      var(--ember-hot)
+    );
+  }
 }
 
 @keyframes kindling-rise {

@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { BookmarkIcon, CloudCheckIcon, EyeIcon, LogOutIcon, UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,10 +17,8 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { Wordmark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { AuthDialog } from "@/components/auth-dialog";
 import { useKindling } from "@/lib/store";
 import { formatCode } from "@/lib/api";
-import { cn } from "@/lib/utils";
 
 export function SiteHeader() {
   const { saved, token, syncing, signOut } = useKindling();
@@ -29,9 +26,12 @@ export function SiteHeader() {
   const [showCode, setShowCode] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur-md">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-3 px-4">
-        <Link href="/" className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
+      <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4 sm:gap-3">
+        <Link
+          href="/"
+          className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        >
           <Wordmark />
         </Link>
 
@@ -43,11 +43,9 @@ export function SiteHeader() {
           render={<Link href="/library" />}
         >
           <BookmarkIcon data-icon="inline-start" />
-          Saved
+          <span className="hidden sm:inline">Saved</span>
           {saved.length ? (
-            <Badge variant="secondary" className={cn(pathname === "/library" && "bg-background")}>
-              {saved.length}
-            </Badge>
+            <span className="text-muted-foreground tabular-nums">{saved.length}</span>
           ) : null}
         </Button>
 
@@ -62,17 +60,14 @@ export function SiteHeader() {
                 </Button>
               }
             />
-            <DropdownMenuContent align="end" className="w-72">
+            <DropdownMenuContent align="end" className="w-72 max-w-[calc(100vw-2rem)]">
               <DropdownMenuLabel className="flex items-center gap-2 font-normal text-muted-foreground">
                 <CloudCheckIcon className="size-3.5" />
                 {syncing ? "Syncing…" : "Saved on the server"}
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem
-                  closeOnClick={false}
-                  onClick={() => setShowCode((v) => !v)}
-                >
+                <DropdownMenuItem closeOnClick={false} onClick={() => setShowCode((v) => !v)}>
                   <EyeIcon />
                   {showCode ? "Hide my code" : "Show my recovery code"}
                 </DropdownMenuItem>
@@ -90,13 +85,7 @@ export function SiteHeader() {
               </DropdownMenuGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-        ) : (
-          <AuthDialog>
-            <Button variant="outline" size="sm">
-              Sign in
-            </Button>
-          </AuthDialog>
-        )}
+        ) : null}
       </div>
     </header>
   );

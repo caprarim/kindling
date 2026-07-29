@@ -103,7 +103,7 @@ export function AuthDialog({
                 <AlertTitle>Lose it and the library is gone</AlertTitle>
                 <AlertDescription>
                   Paste it into a password manager. Entering it on another device brings your saved
-                  ideas — and the record of what you&rsquo;ve been shown — with you.
+                  ideas, and the record of what you&rsquo;ve been shown, with you.
                 </AlertDescription>
               </Alert>
               <Button onClick={() => onOpenChange?.(false)}>I&rsquo;ve saved it</Button>
@@ -115,7 +115,7 @@ export function AuthDialog({
               <DialogTitle>Keep your ideas on every device</DialogTitle>
               <DialogDescription>
                 You&rsquo;ve saved {saved.length} {saved.length === 1 ? "idea" : "ideas"} and seen{" "}
-                {seenCount}. An account moves all of it onto the server — nothing is lost, and
+                {seenCount}. An account moves all of it onto the server. Nothing is lost, and
                 nothing gets re-shown.
               </DialogDescription>
             </DialogHeader>
