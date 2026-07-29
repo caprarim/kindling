@@ -20,8 +20,8 @@ const PATH_LABELS: Record<string, string> = {
 };
 
 const SKILL_LEVEL_LABELS: Record<string, string> = {
-  none: "Not at all yet",
-  learning: "A little, with help",
+  none: "Never tried it",
+  learning: "I've had a go",
   comfortable: "Fairly comfortable",
   strong: "Very comfortable",
 };
@@ -81,7 +81,7 @@ export function summarise(p: Profile): AnswerSummary[] {
     p.frustrations.map((f) => FRUSTRATIONS.find((x) => x.id === f)?.label),
   );
   add("vibes", ["vibes"], "Gut feel", p.vibes.map((v) => VIBES.find((x) => x.id === v)?.label));
-  add("skillLevel", ["skillLevel"], "Web coding", [
+  add("skillLevel", ["skillLevel"], "Vibe coding", [
     p.skillLevel ? SKILL_LEVEL_LABELS[p.skillLevel] : undefined,
   ]);
   add("surfaces", ["surfaces"], "Shape", p.surfaces.map((s) => SURFACES.find((x) => x.id === s)?.label));

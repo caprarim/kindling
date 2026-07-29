@@ -36,9 +36,10 @@ export default function Home() {
         </h1>
 
         <p className="max-w-xl text-base/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
-          Made for vibe coders. Answer a handful of plain questions, each one shaped by the last, and
-          get ideas built around what you&rsquo;re into and how much time you actually have. No
-          jargon, no languages to name, no test to pass.
+          Made for vibe coders, the kind who build by telling an AI what they want. Answer a handful
+          of plain questions, each one shaped by the last, and get ideas built around what
+          you&rsquo;re into and how much time you actually have. No jargon, no languages to name, no
+          test to pass.
         </p>
 
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -90,7 +91,7 @@ export default function Home() {
         <Feature
           icon={<SparklesIcon className="size-4" />}
           title="Questions that adapt"
-          body="Pick cooking and you get cooking follow-ups. Say you're new to coding and the whole path changes."
+          body="Pick cooking and you get cooking follow-ups. Say you're new to vibe coding and the whole path changes."
         />
         <Feature
           icon={<BookmarkIcon className="size-4" />}

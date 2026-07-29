@@ -128,10 +128,10 @@ function timeLabel(t: string) {
 function skillLabel(s: string) {
   return (
     {
-      none: "New to web coding",
-      learning: "Web coding with help",
-      comfortable: "Fairly comfortable coding",
-      strong: "Very comfortable coding",
+      none: "New to vibe coding",
+      learning: "Some vibe coding",
+      comfortable: "Comfortable vibe coding",
+      strong: "Fluent at vibe coding",
     }[s] ?? s
   );
 }

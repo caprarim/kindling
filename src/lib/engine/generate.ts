@@ -162,7 +162,7 @@ function stackFor(p: Profile, mechanicSurfaces: string[]): string[] {
     const surface = SURFACES.find((x) => x.id === s);
     surface?.stack.forEach((item) => stack.add(item));
   }
-  if (p.skillLevel === "none") stack.add("No framework needed to start");
+  if (p.skillLevel === "none") stack.add("An AI that writes it with you");
   return [...stack].slice(0, 4);
 }
 
@@ -225,15 +225,15 @@ function whyFor(
   const pool: string[] = [];
 
   if (p.skillLevel === "none") {
-    pool.push("It assumes you've built nothing before: the first version is genuinely small.");
-    pool.push("Nothing here needs a framework you haven't met yet.");
+    pool.push("It assumes you've never vibe coded anything: the first version is genuinely small.");
+    pool.push("You can describe this one in a sentence, which is exactly what makes it easy to prompt.");
   } else if (p.skillLevel === "strong") {
     pool.push("The obvious version is easy, so the interesting work is in the part you'd enjoy.");
     pool.push(`A ${mechanicLabel.toLowerCase()} is a solved shape, which frees you to make the twist the point.`);
   } else if (p.skillLevel === "learning") {
-    pool.push("It stays inside what you can already get on screen, with one part that stretches you.");
+    pool.push("Each piece is small enough to ask for on its own, with one part that stretches you.");
   } else {
-    pool.push("It's comfortably inside what you said you can build, so the fun is in the details.");
+    pool.push("It's the sort of thing you can steer an AI through in a sitting, so the fun is in the details.");
   }
 
   if (p.timeBudget === "weekend") {

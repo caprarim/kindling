@@ -286,28 +286,28 @@ export function nextQuestion(p: Profile): Question | null {
       field: "skillLevel",
       kind: "single",
       progress: 5 / TOTAL_STEPS,
-      title: "How comfortable are you with web coding?",
-      subtitle: "Answer for how it feels, not for what you know. It sets how big we go.",
+      title: "How comfortable are you with vibe coding?",
+      subtitle: "Telling an AI what to build and steering it. Answer for how it feels, not for what you know.",
       choices: [
         {
           id: "none",
-          label: "Not at all yet",
+          label: "Never tried it",
           hint: "We'll pick things with a gentle first step",
         },
         {
           id: "learning",
-          label: "A little, with help",
-          hint: "You get there when something walks you through it",
+          label: "I've had a go",
+          hint: "It works when you keep asking, it just takes a while",
         },
         {
           id: "comfortable",
           label: "Fairly comfortable",
-          hint: "You can get a working thing on screen",
+          hint: "You can usually prompt your way to a working thing",
         },
         {
           id: "strong",
           label: "Very comfortable",
-          hint: "Go on then. Make it interesting",
+          hint: "You know how to steer it. Go on then, make it interesting",
         },
       ],
     };
