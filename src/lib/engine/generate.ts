@@ -198,7 +198,7 @@ function whyFor(
     anchor = pick(
       [
         `You leaned toward ${domainLabel.toLowerCase()}, so this sits squarely in it.`,
-        `This is ${domainLabel.toLowerCase()} territory, which is where you pointed us.`,
+        `This is ${domainLabel.toLowerCase()} territory, which is where the answers point.`,
         `You picked ${domainLabel.toLowerCase()}; this is one of its more overlooked corners.`,
       ],
       r,

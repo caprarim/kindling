@@ -85,8 +85,8 @@ export function AuthDialog({
             <DialogHeader>
               <DialogTitle>Save this code somewhere</DialogTitle>
               <DialogDescription>
-                It&rsquo;s the only way back into your account. We store a one-way hash of it, so we
-                genuinely cannot recover it for you.
+                It&rsquo;s the only way back into this account. Only a one-way hash of it is ever
+                stored, so it genuinely cannot be recovered later.
               </DialogDescription>
             </DialogHeader>
 

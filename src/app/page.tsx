@@ -29,29 +29,23 @@ export default function Home() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-10 sm:gap-14 sm:py-16 lg:py-20">
-      <header className="flex flex-col items-start gap-6 rounded-3xl border border-border bg-card px-6 py-10 shadow-sm sm:px-10 sm:py-14">
-        <h1 className="font-heading text-[2.1rem] leading-[1.08] font-semibold tracking-tight text-balance text-card-foreground sm:text-5xl lg:text-6xl">
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-8 sm:gap-14 sm:px-6 sm:py-16 lg:py-20">
+      <header className="ember-wash flex flex-col items-start gap-5 rounded-3xl border border-border bg-card px-5 py-8 shadow-sm sm:gap-6 sm:px-10 sm:py-14">
+        <h1 className="font-heading text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance text-card-foreground sm:text-5xl lg:text-6xl">
           Find a project <span className="text-primary">worth building</span>.
         </h1>
 
-        <p className="max-w-xl text-base/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
-          Made for vibe coders, the kind who build by telling an AI what they want. Answer a handful
-          of plain questions, each one shaped by the last, and get ideas built around what
-          you&rsquo;re into and how much time you actually have. No jargon, no languages to name, no
-          test to pass.
-        </p>
-
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span className="size-1.5 rounded-full bg-primary" aria-hidden />
-          No account needed to use any of this.
+        <p className="max-w-xl text-[0.95rem]/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
+          Made for vibe coders, the kind who build by telling an AI what they want. A handful of
+          plain questions, each one shaped by the last, then ideas built around real interests and
+          the time actually available. No jargon, no languages to name, no test to pass.
         </p>
       </header>
 
       <section className="flex flex-col gap-5">
         <div className="flex items-center gap-3">
-          <Mark className="size-6 shrink-0 text-primary" />
-          <h2 className="font-heading text-lg font-semibold tracking-tight sm:text-xl">
+          <Mark className="size-6 shrink-0 text-primary sm:size-7" />
+          <h2 className="font-heading text-lg font-semibold tracking-tight text-balance sm:text-xl">
             {first.title}
           </h2>
         </div>
@@ -62,50 +56,53 @@ export default function Home() {
         <ChoiceGrid choices={first.choices ?? []} value={[]} onChange={choose} columns={1} />
 
         {inProgress ? (
-          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm ring-1 ring-black/[0.02] sm:flex-row sm:items-center sm:gap-5 sm:p-6">
-            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm sm:flex-row sm:items-center sm:gap-5 sm:p-6">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
               <SparklesIcon className="size-5" />
             </span>
             <div className="flex-1 space-y-1">
               <p className="text-[0.95rem] font-medium tracking-tight text-card-foreground">
-                You&rsquo;ve already started
+                Already in progress
               </p>
               <p className="text-sm/relaxed text-muted-foreground text-pretty">
-                Pick up where you left off, or choose again above to begin fresh.
+                Pick up where it left off, or choose again above to begin fresh.
               </p>
             </div>
-            <Button size="lg" className="w-full sm:w-auto" render={<Link href="/start" />}>
-              Continue
-              <ArrowRightIcon data-icon="inline-end" />
+            <Button
+              size="lg"
+              className="h-12 w-full gap-2 rounded-full px-6 text-[0.95rem] font-medium sm:w-auto"
+              render={<Link href="/start" />}
+            >
+              Carry on
+              <ArrowRightIcon className="size-4" />
             </Button>
           </div>
         ) : null}
       </section>
 
-      <section className="grid gap-7 border-t border-border/60 pt-10 sm:grid-cols-3 sm:gap-6">
+      <section className="grid gap-7 border-t border-border/60 pt-9 sm:grid-cols-3 sm:gap-6 sm:pt-10">
         <Feature
           icon={<ShuffleIcon className="size-4" />}
           title="Never the same idea twice"
-          body="Every idea gets a fingerprint. Once you've seen it, it's retired for good, even across sessions."
+          body="Every idea gets a fingerprint. Once it has been shown, it is retired for good, even across sessions."
         />
         <Feature
           icon={<SparklesIcon className="size-4" />}
           title="Questions that adapt"
-          body="Pick cooking and you get cooking follow-ups. Say you're new to vibe coding and the whole path changes."
+          body="Pick cooking and the follow-ups turn to cooking. Say vibe coding is new and the whole path changes."
         />
         <Feature
           icon={<BookmarkIcon className="size-4" />}
-          title="Saved the moment you tap"
-          body="Ideas land in your library straight away. No account, no email, nothing to set up first."
+          title="Saved the moment it is tapped"
+          body="Ideas land in the library straight away. No account, no email, nothing to set up first."
         />
       </section>
 
       {saved.length || seenCount ? (
         <p className="text-sm text-muted-foreground">
-          So far you&rsquo;ve seen {seenCount} {seenCount === 1 ? "idea" : "ideas"} and saved{" "}
-          {saved.length}.{" "}
+          {seenCount} {seenCount === 1 ? "idea" : "ideas"} shown so far, {saved.length} kept.{" "}
           <Link href="/library" className="underline underline-offset-4 hover:text-primary">
-            Open your library
+            Open the library
           </Link>
           .
         </p>

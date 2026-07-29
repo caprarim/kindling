@@ -33,20 +33,20 @@ export default function IdeasPage() {
   const remaining = Math.max(0, poolSize(profile) - countSeenInPool(profile, seen));
 
   return (
-    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-10 sm:py-14">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-14">
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
-            <h1 className="font-heading text-3xl font-semibold tracking-tight text-balance sm:text-4xl">
-              Six ideas, shaped around you
+            <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight text-balance sm:text-4xl">
+              Six ideas, shaped by every answer
             </h1>
-            <p className="text-muted-foreground text-pretty">
-              None of these has been shown to you before, and none of them will be shown again.
+            <p className="text-sm/relaxed text-muted-foreground text-pretty sm:text-base/relaxed">
+              None of these has appeared before, and none of them will appear again.
             </p>
           </div>
 
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-            <Button className="flex-1 sm:flex-none" onClick={generate} disabled={generating}>
+            <Button className="flex-1 rounded-full sm:flex-none" onClick={generate} disabled={generating}>
               {generating ? (
                 <Spinner data-icon="inline-start" />
               ) : (
@@ -54,11 +54,11 @@ export default function IdeasPage() {
               )}
               Six more
             </Button>
-            <Button variant="outline" render={<Link href="/start" />}>
+            <Button variant="outline" className="rounded-full" render={<Link href="/start" />}>
               <PencilIcon data-icon="inline-start" />
               Change answers
             </Button>
-            <Button variant="ghost" onClick={() => { restart(); router.push("/"); }}>
+            <Button variant="ghost" className="rounded-full" onClick={() => { restart(); router.push("/"); }}>
               <RotateCcwIcon data-icon="inline-start" />
               Start over
             </Button>
@@ -81,10 +81,10 @@ export default function IdeasPage() {
       {exhausted ? (
         <Alert>
           <InfoIcon />
-          <AlertTitle>You&rsquo;ve been thorough</AlertTitle>
+          <AlertTitle>That is nearly all of them</AlertTitle>
           <AlertDescription>
-            You&rsquo;ve worked through nearly everything these answers can produce. Widen them on
-            the questions page and the pool opens right back up.
+            These answers have produced almost everything they can. Widening them on the questions
+            page opens the pool right back up.
           </AlertDescription>
         </Alert>
       ) : null}
@@ -105,7 +105,7 @@ export default function IdeasPage() {
 
       <div className="flex flex-wrap items-center justify-center gap-3 border-t border-border/60 pt-8">
         <p className="text-sm text-muted-foreground">Nothing here landed?</p>
-        <Button variant="outline" onClick={generate} disabled={generating}>
+        <Button variant="outline" className="rounded-full" onClick={generate} disabled={generating}>
           {generating ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
           Show me six completely different ones
         </Button>

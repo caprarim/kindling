@@ -97,7 +97,7 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "single",
       progress: 0,
       title: "Where are you starting from?",
-      subtitle: "There's no wrong answer here. It just decides what we ask next.",
+      subtitle: "There's no wrong answer here. It just decides what comes next.",
       choices: [
         {
           id: "has-idea",
@@ -112,7 +112,7 @@ export function nextQuestion(p: Profile): Question | null {
         {
           id: "no-idea",
           label: "I have absolutely no idea",
-          hint: "Completely blank. We'll work it out together",
+          hint: "Completely blank, which is a perfectly good start",
         },
       ],
     };
@@ -142,12 +142,12 @@ export function nextQuestion(p: Profile): Question | null {
           min: 1,
           max: 3,
           progress: 2 / TOTAL_STEPS,
-          title: `That reads like ${names[0]} to us.`,
-          subtitle: "We've pre-selected what we picked up. Change it if we've misread you.",
+          title: `That reads like ${names[0]}.`,
+          subtitle: "Already ticked from the description. Change anything that looks off.",
           choices: domainChoices().map((c) =>
             detected.includes(c.id) ? { ...c, hint: `${c.hint} (matched your description)` } : c,
           ),
-          escape: { label: "None of these fit", hint: "We'll go wider instead" },
+          escape: { label: "None of these fit" },
         };
       }
       return {
@@ -160,7 +160,7 @@ export function nextQuestion(p: Profile): Question | null {
         title: "Which world does that live in?",
         subtitle: "Pick up to three. This shapes everything after it.",
         choices: domainChoices(),
-        escape: { label: "None of these fit", hint: "We'll go wider instead" },
+        escape: { label: "None of these fit" },
       };
     }
   }
@@ -175,9 +175,9 @@ export function nextQuestion(p: Profile): Question | null {
       max: 3,
       progress: 1 / TOTAL_STEPS,
       title: "What kind of territory are you drawn to?",
-      subtitle: "Pick up to three. Everything we ask after this is built from your choice.",
+      subtitle: "Pick up to three. Everything after this is built from that choice.",
       choices: domainChoices(),
-      escape: { label: "None of these, really", hint: "We'll come at it from another angle" },
+      escape: { label: "None of these, really" },
     };
   }
 
@@ -194,10 +194,7 @@ export function nextQuestion(p: Profile): Question | null {
         title: "Forget building for a second. What are you into?",
         subtitle: "Not what you're good at. What you'd read about on a slow evening.",
         choices: domainChoices(),
-        escape: {
-          label: "Honestly, none of these",
-          hint: "Fine. We'll ask about something else entirely",
-        },
+        escape: { label: "Honestly, none of these" },
       };
     }
 
@@ -218,7 +215,7 @@ export function nextQuestion(p: Profile): Question | null {
         subtitle:
           "You don't need interests or skills to be irritated by something. Irritation is a fine place to start a project.",
         choices: FRUSTRATIONS.map((f) => ({ id: f.id, label: f.label })),
-        escape: { label: "None of these either", hint: "Last resort, and it's a fun one" },
+        escape: { label: "None of these either" },
       };
     }
 
@@ -259,7 +256,7 @@ export function nextQuestion(p: Profile): Question | null {
           : `Which corners of ${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}?`,
       subtitle: "These options exist because of what you just picked.",
       choices: focusChoices(p),
-      escape: { label: "Show me all of it", hint: "Keep the whole area in play" },
+      escape: { label: "Show me all of it" },
     };
   }
 
@@ -275,7 +272,7 @@ export function nextQuestion(p: Profile): Question | null {
       title: "Who would this be for?",
       subtitle: "Building for one specific person beats building for everyone.",
       choices: audienceChoices(p),
-      escape: { label: "No idea yet", hint: "We'll suggest someone" },
+      escape: { label: "No idea yet" },
     };
   }
 
@@ -292,7 +289,7 @@ export function nextQuestion(p: Profile): Question | null {
         {
           id: "none",
           label: "Never tried it",
-          hint: "We'll pick things with a gentle first step",
+          hint: "Every idea here will open with a gentle first step",
         },
         {
           id: "learning",
@@ -325,10 +322,10 @@ export function nextQuestion(p: Profile): Question | null {
       title: "What should the thing actually be?",
       subtitle:
         p.skillLevel === "none" || p.skillLevel === "learning"
-          ? "We've put the kindest options first."
-          : "Ordered around how comfortable you said you are.",
+          ? "Kindest options first."
+          : "Ordered around the comfort level just picked.",
       choices: surfaceChoices(p),
-      escape: { label: "Surprise me", hint: "We'll pick whatever suits the idea" },
+      escape: { label: "Surprise me" },
     };
   }
 
@@ -339,7 +336,7 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "single",
       progress: 7 / TOTAL_STEPS,
       title: "How much time have you actually got?",
-      subtitle: "Be honest rather than optimistic. It changes what we suggest.",
+      subtitle: "Be honest rather than optimistic. It changes what comes back.",
       choices: [
         { id: "weekend", label: "A weekend", hint: "One sitting, one idea, done" },
         { id: "few-weeks", label: "A few weeks of evenings", hint: "Room for something real" },
@@ -360,7 +357,7 @@ export function nextQuestion(p: Profile): Question | null {
       title: "And why are you building it?",
       subtitle: "This changes the advice more than you'd think.",
       choices: MOTIVATIONS.map((m) => ({ id: m.id, label: m.label, hint: m.hint })),
-      escape: { label: "Not sure", hint: "We'll assume you want something satisfying" },
+      escape: { label: "Not sure" },
     };
   }
 
@@ -370,7 +367,7 @@ export function nextQuestion(p: Profile): Question | null {
       field: "appetite",
       kind: "single",
       progress: 8 / TOTAL_STEPS,
-      title: "Last one. What should we lean toward?",
+      title: "Last one. Which way should it lean?",
       choices: [
         { id: "practical", label: "Something obviously useful", hint: "Solves a real problem, no gimmicks" },
         { id: "playful", label: "Something a bit strange", hint: "Odd, charming, memorable" },

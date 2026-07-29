@@ -94,10 +94,11 @@ export function IdeaCard({
         <p className="text-sm text-muted-foreground text-pretty">{idea.tags.join(" · ")}</p>
       </CardContent>
 
-      <CardFooter className="gap-2">
+      <CardFooter className="flex-wrap gap-2">
         <Button
           variant={saved ? "secondary" : "outline"}
           size="sm"
+          className="h-9 rounded-full px-4"
           onClick={() => toggleSave(idea)}
           aria-pressed={saved}
         >
@@ -108,7 +109,12 @@ export function IdeaCard({
           {saved ? "Saved" : "Save this one"}
         </Button>
         {onRemove ? (
-          <Button variant="ghost" size="sm" onClick={() => onRemove(idea.id)}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 rounded-full px-4"
+            onClick={() => onRemove(idea.id)}
+          >
             <Trash2Icon data-icon="inline-start" />
             Remove
           </Button>

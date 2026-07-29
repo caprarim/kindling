@@ -59,12 +59,12 @@ export type Question = {
   title: string;
   subtitle?: string;
   choices?: Choice[];
-  /** For multi: how many must be picked before Continue enables. */
+  /** For multi: how many must be picked before the flow moves on. */
   min?: number;
   max?: number;
   placeholder?: string;
   /** Shown as a quiet "none of these" escape hatch. */
-  escape?: { label: string; hint?: string };
+  escape?: { label: string };
   /** Roughly how far through the flow this question sits, 0–1. */
   progress: number;
 };

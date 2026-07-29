@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import Link from "next/link";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { KindlingProvider } from "@/lib/store";
 import { SiteHeader } from "@/components/site-header";
 import { Mark } from "@/components/logo";
+import { Separator } from "@/components/ui/separator";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -18,7 +20,7 @@ const display = Fraunces({
 export const metadata: Metadata = {
   title: "Kindling, find a project worth building",
   description:
-    "Answer a few questions and get project ideas shaped around what you're into, what you can do, and how much time you've got. No account needed, and you'll never see the same idea twice.",
+    "A few plain questions, then project ideas shaped around real interests, real skill level and the time actually available. No account needed, and no idea ever repeats.",
   applicationName: "Kindling",
   openGraph: {
     title: "Kindling",
@@ -62,16 +64,60 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <SiteHeader />
               <main className="flex flex-1 flex-col">{children}</main>
               <footer className="mt-auto border-t border-border bg-card">
-                <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-9 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
-                  <div className="flex items-center gap-2.5">
-                    <Mark className="size-5 shrink-0 text-primary" />
-                    <span className="font-heading text-base font-semibold tracking-tight text-card-foreground">
-                      Kindling
-                    </span>
+                <div className="mx-auto w-full max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
+                  <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-10">
+                    <div className="flex items-center gap-4">
+                      <span className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/15 sm:size-16">
+                        <Mark className="size-9 text-primary sm:size-10" />
+                      </span>
+                      <div className="flex flex-col gap-1">
+                        <span className="font-heading text-xl font-semibold tracking-tight text-card-foreground sm:text-2xl">
+                          Kindling
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          Find a project worth building.
+                        </span>
+                      </div>
+                    </div>
+
+                    <nav className="flex flex-wrap items-center gap-x-7 gap-y-3 text-sm font-medium sm:justify-end">
+                      <Link
+                        href="/"
+                        className="rounded-md text-muted-foreground transition-colors outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        Start over
+                      </Link>
+                      <Link
+                        href="/start"
+                        className="rounded-md text-muted-foreground transition-colors outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        Questions
+                      </Link>
+                      <Link
+                        href="/ideas"
+                        className="rounded-md text-muted-foreground transition-colors outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        Ideas
+                      </Link>
+                      <Link
+                        href="/library"
+                        className="rounded-md text-muted-foreground transition-colors outline-none hover:text-primary focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      >
+                        Library
+                      </Link>
+                    </nav>
                   </div>
-                  <p className="max-w-sm text-sm/relaxed text-muted-foreground text-pretty sm:text-right">
-                    Everything stays on your device. Nothing leaves it unless you ask it to.
-                  </p>
+
+                  <Separator className="my-7 opacity-70 sm:my-8" />
+
+                  <div className="flex flex-col gap-2 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+                    <p className="text-pretty">
+                      Everything stays on this device. Nothing leaves it unless asked.
+                    </p>
+                    <p className="text-xs tracking-wide uppercase sm:text-right">
+                      Built for vibe coders
+                    </p>
+                  </div>
                 </div>
               </footer>
             </Toaster>

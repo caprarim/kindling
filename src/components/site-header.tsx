@@ -26,8 +26,8 @@ export function SiteHeader() {
   const [showCode, setShowCode] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 w-full border-b border-border bg-background">
-      <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4 sm:gap-3">
+    <header className="sticky top-0 z-40 w-full border-b border-border bg-background/85 backdrop-blur-md supports-[backdrop-filter]:bg-background/70">
+      <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-2 px-4 sm:h-16 sm:gap-3 sm:px-6">
         <Link
           href="/"
           className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -40,6 +40,7 @@ export function SiteHeader() {
         <Button
           variant={pathname === "/library" ? "secondary" : "ghost"}
           size="sm"
+          className="h-9 rounded-full px-3.5"
           render={<Link href="/library" />}
         >
           <BookmarkIcon data-icon="inline-start" />
