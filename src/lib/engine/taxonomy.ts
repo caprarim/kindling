@@ -727,9 +727,9 @@ export const SURFACES: { id: string; label: string; hint: string; stack: string[
   { id: "web", label: "A website", hint: "Opens in a browser, nothing to install", stack: ["Next.js", "TypeScript", "Tailwind"] },
   { id: "mobile", label: "A phone app", hint: "Lives in a pocket", stack: ["React Native", "Expo"] },
   { id: "desktop", label: "A desktop app", hint: "A real window on a real computer", stack: ["Tauri", "React"] },
-  { id: "cli", label: "A command-line tool", hint: "Fast, text, no interface to design", stack: ["Node", "TypeScript"] },
-  { id: "nocode", label: "Something with no code", hint: "Spreadsheets, forms, automations", stack: ["Airtable", "Zapier"] },
-  { id: "data", label: "Something data-shaped", hint: "Charts, analysis, notebooks", stack: ["Python", "DuckDB"] },
+  { id: "cli", label: "A small tool you run yourself", hint: "No interface to design, just text", stack: ["Node", "TypeScript"] },
+  { id: "nocode", label: "Something with no code at all", hint: "Spreadsheets, forms, automations", stack: ["Airtable", "Zapier"] },
+  { id: "data", label: "Something built around numbers", hint: "Charts, patterns, keeping score", stack: ["Python", "DuckDB"] },
 ];
 
 export const SKILL_AREAS: { id: string; label: string; hint: string; surfaces: string[] }[] = [

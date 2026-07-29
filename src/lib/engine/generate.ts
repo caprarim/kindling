@@ -6,7 +6,6 @@ import {
   MOTIVATIONS,
   NAME_ADJECTIVES,
   NAME_SUFFIXES,
-  SKILL_AREAS,
   SURFACES,
   TWISTS,
   TWIST_BY_ID,
@@ -163,7 +162,6 @@ function stackFor(p: Profile, mechanicSurfaces: string[]): string[] {
     const surface = SURFACES.find((x) => x.id === s);
     surface?.stack.forEach((item) => stack.add(item));
   }
-  if (p.skills.includes("data")) stack.add("A spreadsheet, at first");
   if (p.skillLevel === "none") stack.add("No framework needed to start");
   return [...stack].slice(0, 4);
 }
@@ -232,9 +230,10 @@ function whyFor(
   } else if (p.skillLevel === "strong") {
     pool.push("The obvious version is easy, so the interesting work is in the part you'd enjoy.");
     pool.push(`A ${mechanicLabel.toLowerCase()} is a solved shape, which frees you to make the twist the point.`);
-  } else if (p.skills.length) {
-    const s = SKILL_AREAS.find((x) => x.id === p.skills[0]);
-    if (s) pool.push(`It leans on ${s.label.toLowerCase()}, which you said you've got or want.`);
+  } else if (p.skillLevel === "learning") {
+    pool.push("It stays inside what you can already get on screen, with one part that stretches you.");
+  } else {
+    pool.push("It's comfortably inside what you said you can build, so the fun is in the details.");
   }
 
   if (p.timeBudget === "weekend") {

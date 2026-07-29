@@ -3,6 +3,7 @@ import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { KindlingProvider } from "@/lib/store";
 import { SiteHeader } from "@/components/site-header";
+import { Mark } from "@/components/logo";
 import { Toaster } from "@/components/ui/toast";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
@@ -60,11 +61,17 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             <Toaster>
               <SiteHeader />
               <main className="flex flex-1 flex-col">{children}</main>
-              <footer className="border-t border-border/60 py-6">
-                <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center gap-x-4 gap-y-2 px-4 text-sm text-muted-foreground">
-                  <span>Kindling</span>
-                  <span aria-hidden>·</span>
-                  <span>Nothing is sent anywhere until you decide to make an account.</span>
+              <footer className="mt-auto border-t border-border bg-card">
+                <div className="mx-auto flex w-full max-w-5xl flex-col gap-5 px-4 py-9 sm:flex-row sm:items-center sm:justify-between sm:gap-8">
+                  <div className="flex items-center gap-2.5">
+                    <Mark className="size-5 shrink-0 text-primary" />
+                    <span className="font-heading text-base font-semibold tracking-tight text-card-foreground">
+                      Kindling
+                    </span>
+                  </div>
+                  <p className="max-w-sm text-sm/relaxed text-muted-foreground text-pretty sm:text-right">
+                    Everything stays on your device. Nothing leaves it unless you ask it to.
+                  </p>
                 </div>
               </footer>
             </Toaster>

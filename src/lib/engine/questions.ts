@@ -1,12 +1,4 @@
-import {
-  DOMAINS,
-  DOMAIN_BY_ID,
-  FRUSTRATIONS,
-  MOTIVATIONS,
-  SKILL_AREAS,
-  SURFACES,
-  VIBES,
-} from "./taxonomy";
+import { DOMAINS, DOMAIN_BY_ID, FRUSTRATIONS, MOTIVATIONS, SURFACES, VIBES } from "./taxonomy";
 import type { Choice, Profile, Question } from "./types";
 
 /**
@@ -46,11 +38,6 @@ export function effectiveDomains(p: Profile): string[] {
   const fromVibe = p.vibes.flatMap((v) => VIBES.find((x) => x.id === v)?.domains ?? []);
   if (fromVibe.length) return [...new Set(fromVibe)];
 
-  const fromSkill = p.skills.length
-    ? DOMAINS.filter((d) => ["dev", "ai", "media", "creative"].includes(d.id)).map((d) => d.id)
-    : [];
-  if (fromSkill.length) return fromSkill;
-
   return DOMAINS.map((d) => d.id);
 }
 
@@ -78,7 +65,7 @@ function focusChoices(p: Profile): Choice[] {
 /** Audience options, likewise derived. Plus the honest "me" option. */
 function audienceChoices(p: Profile): Choice[] {
   const picked = (p.domains.length ? p.domains : effectiveDomains(p)).slice(0, 3);
-  const out: Choice[] = [{ id: "self", label: "Honestly? Me", hint: "Built for one user, and that's fine" }];
+  const out: Choice[] = [{ id: "self", label: "Me", hint: "Built for one user, and that's fine" }];
   for (const id of picked) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
@@ -87,34 +74,16 @@ function audienceChoices(p: Profile): Choice[] {
   return out;
 }
 
-/** Surfaces, reordered and re-worded around what the person can already do. */
+/** Surfaces, reordered around how comfortable the person said they are. */
 function surfaceChoices(p: Profile): Choice[] {
-  const fromSkills = new Set(
-    p.skills.flatMap((s) => SKILL_AREAS.find((x) => x.id === s)?.surfaces ?? []),
-  );
-  const noSkills = p.skillLevel === "none" || p.skills.length === 0;
+  const easyFirst = p.skillLevel === "none" || p.skillLevel === "learning";
 
   const scored = SURFACES.map((s) => ({
     s,
-    rank: (fromSkills.has(s.id) ? -2 : 0) + (noSkills && s.id === "nocode" ? -3 : 0),
+    rank: easyFirst && (s.id === "web" || s.id === "nocode") ? -2 : 0,
   })).sort((a, b) => a.rank - b.rank);
 
-  return scored.map(({ s }) => ({
-    id: s.id,
-    label: s.label,
-    hint: fromSkills.has(s.id) ? `${s.hint} (plays to what you picked)` : s.hint,
-  }));
-}
-
-/** Skill options, worded around the subject matter already on the table. */
-function skillChoices(p: Profile): Choice[] {
-  const d = DOMAIN_BY_ID.get(effectiveDomains(p)[0] ?? "");
-  return SKILL_AREAS.map((s) => ({
-    id: s.id,
-    label: s.label,
-    hint: s.hint,
-    ...(d && s.id === "frontend" ? { hint: `${s.hint} (useful for anything ${d.label.toLowerCase()})` } : {}),
-  }));
+  return scored.map(({ s }) => ({ id: s.id, label: s.label, hint: s.hint }));
 }
 
 const TOTAL_STEPS = 8;
@@ -232,28 +201,9 @@ export function nextQuestion(p: Profile): Question | null {
       };
     }
 
-    if (!p.domains.length && has(p, "interests") && !p.skills.length && !has(p, "skills")) {
-      return {
-        id: "skills",
-        field: "skills",
-        kind: "multi",
-        min: 1,
-        max: 4,
-        progress: 2 / TOTAL_STEPS,
-        title: "Alright, what can you do, or want to be able to do?",
-        subtitle: "Wanting to learn it counts exactly as much as already knowing it.",
-        choices: SKILL_AREAS.map((s) => ({ id: s.id, label: s.label, hint: s.hint })),
-        escape: {
-          label: "I don't have any skills yet",
-          hint: "Genuinely fine, that's a normal place to start",
-        },
-      };
-    }
-
     if (
       !p.domains.length &&
       has(p, "interests") &&
-      has(p, "skills") &&
       !p.frustrations.length &&
       !has(p, "frustrations")
     ) {
@@ -329,36 +279,36 @@ export function nextQuestion(p: Profile): Question | null {
     };
   }
 
-  // ── 5. What can you build with ───────────────────────────────────────────
-  if (!p.skills.length && !has(p, "skills")) {
-    return {
-      id: "skills",
-      field: "skills",
-      kind: "multi",
-      min: 1,
-      max: 4,
-      progress: 5 / TOTAL_STEPS,
-      title: "What are you bringing to it?",
-      subtitle: "Wanting to learn something counts. Pick what you'd enjoy using.",
-      choices: skillChoices(p),
-      escape: { label: "Nothing yet, I'm starting fresh", hint: "We'll keep the scope kind" },
-    };
-  }
-
+  // ── 5. How comfortable are you actually ──────────────────────────────────
   if (!p.skillLevel) {
-    const hasSkills = p.skills.length > 0 && !has(p, "skills");
     return {
       id: "skillLevel",
       field: "skillLevel",
       kind: "single",
-      progress: 6 / TOTAL_STEPS,
-      title: hasSkills ? "How far along are you with that?" : "How much have you built before?",
-      subtitle: "This sets how hard we're allowed to make things.",
+      progress: 5 / TOTAL_STEPS,
+      title: "How comfortable are you with web coding?",
+      subtitle: "Answer for how it feels, not for what you know. It sets how big we go.",
       choices: [
-        { id: "none", label: "I've never built anything", hint: "We'll pick things with a gentle first step" },
-        { id: "learning", label: "I'm learning", hint: "Tutorials done, first projects in progress" },
-        { id: "comfortable", label: "I can build things", hint: "Give me something with real shape to it" },
-        { id: "strong", label: "I've shipped a lot", hint: "Go on then. Make it interesting" },
+        {
+          id: "none",
+          label: "Not at all yet",
+          hint: "We'll pick things with a gentle first step",
+        },
+        {
+          id: "learning",
+          label: "A little, with help",
+          hint: "You get there when something walks you through it",
+        },
+        {
+          id: "comfortable",
+          label: "Fairly comfortable",
+          hint: "You can get a working thing on screen",
+        },
+        {
+          id: "strong",
+          label: "Very comfortable",
+          hint: "Go on then. Make it interesting",
+        },
       ],
     };
   }
@@ -371,12 +321,12 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "multi",
       min: 1,
       max: 3,
-      progress: 6.5 / TOTAL_STEPS,
+      progress: 6 / TOTAL_STEPS,
       title: "What should the thing actually be?",
       subtitle:
-        p.skillLevel === "none"
+        p.skillLevel === "none" || p.skillLevel === "learning"
           ? "We've put the kindest options first."
-          : "Ordered around what you told us you can do.",
+          : "Ordered around how comfortable you said you are.",
       choices: surfaceChoices(p),
       escape: { label: "Surprise me", hint: "We'll pick whatever suits the idea" },
     };

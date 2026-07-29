@@ -128,10 +128,10 @@ function timeLabel(t: string) {
 function skillLabel(s: string) {
   return (
     {
-      none: "New to building",
-      learning: "Learning",
-      comfortable: "Comfortable",
-      strong: "Experienced",
+      none: "New to web coding",
+      learning: "Web coding with help",
+      comfortable: "Fairly comfortable coding",
+      strong: "Very comfortable coding",
     }[s] ?? s
   );
 }

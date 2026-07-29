@@ -1,11 +1,4 @@
-import {
-  DOMAIN_BY_ID,
-  FRUSTRATIONS,
-  MOTIVATIONS,
-  SKILL_AREAS,
-  SURFACES,
-  VIBES,
-} from "./taxonomy";
+import { DOMAIN_BY_ID, FRUSTRATIONS, MOTIVATIONS, SURFACES, VIBES } from "./taxonomy";
 import type { Profile } from "./types";
 
 /**
@@ -27,10 +20,10 @@ const PATH_LABELS: Record<string, string> = {
 };
 
 const SKILL_LEVEL_LABELS: Record<string, string> = {
-  none: "Never built anything",
-  learning: "Learning",
-  comfortable: "Can build things",
-  strong: "Shipped a lot",
+  none: "Not at all yet",
+  learning: "A little, with help",
+  comfortable: "Fairly comfortable",
+  strong: "Very comfortable",
 };
 
 const TIME_LABELS: Record<string, string> = {
@@ -88,8 +81,7 @@ export function summarise(p: Profile): AnswerSummary[] {
     p.frustrations.map((f) => FRUSTRATIONS.find((x) => x.id === f)?.label),
   );
   add("vibes", ["vibes"], "Gut feel", p.vibes.map((v) => VIBES.find((x) => x.id === v)?.label));
-  add("skills", ["skills"], "What you bring", p.skills.map((s) => SKILL_AREAS.find((x) => x.id === s)?.label));
-  add("skillLevel", ["skillLevel"], "Experience", [
+  add("skillLevel", ["skillLevel"], "Web coding", [
     p.skillLevel ? SKILL_LEVEL_LABELS[p.skillLevel] : undefined,
   ]);
   add("surfaces", ["surfaces"], "Shape", p.surfaces.map((s) => SURFACES.find((x) => x.id === s)?.label));

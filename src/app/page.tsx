@@ -36,8 +36,9 @@ export default function Home() {
         </h1>
 
         <p className="max-w-xl text-base/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
-          Answer a handful of questions, each one shaped by the last, and get ideas built around what
-          you&rsquo;re into, what you can already do, and how much time you actually have.
+          Made for vibe coders. Answer a handful of plain questions, each one shaped by the last, and
+          get ideas built around what you&rsquo;re into and how much time you actually have. No
+          jargon, no languages to name, no test to pass.
         </p>
 
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -89,12 +90,12 @@ export default function Home() {
         <Feature
           icon={<SparklesIcon className="size-4" />}
           title="Questions that adapt"
-          body="Pick cooking and you get cooking follow-ups. Say you have no skills and the whole path changes."
+          body="Pick cooking and you get cooking follow-ups. Say you're new to coding and the whole path changes."
         />
         <Feature
           icon={<BookmarkIcon className="size-4" />}
-          title="Save first, sign up later"
-          body="Ideas save straight away. Make an account whenever you like and everything comes with you."
+          title="Saved the moment you tap"
+          body="Ideas land in your library straight away. No account, no email, nothing to set up first."
         />
       </section>
 
