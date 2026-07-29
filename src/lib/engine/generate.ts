@@ -168,48 +168,112 @@ function stackFor(p: Profile, mechanicSurfaces: string[]): string[] {
   return [...stack].slice(0, 4);
 }
 
-/** The personalised paragraph. Always references something they actually said. */
-function whyFor(p: Profile, domainLabel: string, audience: string, difficulty: Difficulty, r: () => number): string {
-  const bits: string[] = [];
-
+/**
+ * The personalised paragraph.
+ *
+ * The opening sentence always anchors to something the person actually said.
+ * The rest is drawn from a pool using the *idea's* seed, so two ideas from the
+ * same answers explain themselves differently instead of reading like a form
+ * letter.
+ */
+function whyFor(
+  p: Profile,
+  domainLabel: string,
+  audience: string,
+  difficulty: Difficulty,
+  mechanicLabel: string,
+  twistClause: string,
+  r: () => number,
+): string {
+  let anchor: string;
   if (p.ideaText?.trim()) {
-    bits.push(`You described wanting "${p.ideaText.trim().slice(0, 90)}" — this is a sharper version of that thought.`);
+    const said = p.ideaText.trim().slice(0, 90);
+    anchor = pick(
+      [
+        `You described wanting "${said}" — this is a sharper version of that thought.`,
+        `This came from what you wrote: "${said}".`,
+        `Take "${said}" and give it edges — that's this.`,
+      ],
+      r,
+    );
   } else if (p.domains.length) {
-    bits.push(`You leaned toward ${domainLabel.toLowerCase()}, so this sits squarely in it.`);
+    anchor = pick(
+      [
+        `You leaned toward ${domainLabel.toLowerCase()}, so this sits squarely in it.`,
+        `This is ${domainLabel.toLowerCase()} territory, which is where you pointed us.`,
+        `You picked ${domainLabel.toLowerCase()}; this is one of its more overlooked corners.`,
+      ],
+      r,
+    );
   } else if (p.frustrations.length) {
-    bits.push(`You said the thing that bugs you is real and daily — this attacks it directly.`);
+    anchor = pick(
+      [
+        "You named something that irritates you daily. This goes straight at it.",
+        "This is built out of the annoyance you picked, not out of a category.",
+      ],
+      r,
+    );
   } else if (p.vibes.length) {
-    const v = VIBES.find((x) => x.id === p.vibes[0]);
-    bits.push(`You went for "${v?.label.toLowerCase() ?? "gut feel"}", and this has exactly that shape.`);
+    const v = VIBES.find((x) => x.id === p.vibes[0])?.label.toLowerCase() ?? "gut feel";
+    anchor = pick(
+      [`You went for "${v}", and this has exactly that shape.`, `This is about as "${v}" as it gets.`],
+      r,
+    );
+  } else {
+    anchor = "It's small enough to start today and open-ended enough to keep going.";
   }
 
+  // Everything that could honestly be said about this idea for this person.
+  const pool: string[] = [];
+
   if (p.skillLevel === "none") {
-    bits.push("It assumes you've built nothing before: the first version is genuinely small.");
+    pool.push("It assumes you've built nothing before: the first version is genuinely small.");
+    pool.push("Nothing here needs a framework you haven't met yet.");
   } else if (p.skillLevel === "strong") {
-    bits.push("The obvious version is easy, so the interesting work is in the part you'd actually enjoy.");
+    pool.push("The obvious version is easy, so the interesting work is in the part you'd enjoy.");
+    pool.push(`A ${mechanicLabel.toLowerCase()} is a solved shape — which frees you to make the twist the point.`);
   } else if (p.skills.length) {
     const s = SKILL_AREAS.find((x) => x.id === p.skills[0]);
-    if (s) bits.push(`It leans on ${s.label.toLowerCase()}, which you said you've got or want.`);
+    if (s) pool.push(`It leans on ${s.label.toLowerCase()}, which you said you've got or want.`);
   }
 
   if (p.timeBudget === "weekend") {
-    bits.push("There's a version of it that's finished by Sunday night.");
+    pool.push("There's a version of it that's finished by Sunday night.");
   } else if (p.timeBudget === "open" && difficulty === "Ambitious") {
-    bits.push("With no deadline you can let this one grow properly.");
+    pool.push("With no deadline you can let this one grow properly.");
+  } else if (p.timeBudget === "few-months") {
+    pool.push("It has enough depth to still be interesting in month three.");
   }
 
   if (p.motivations.includes("portfolio")) {
-    bits.push("It demos in thirty seconds, which is what a portfolio piece needs.");
-  } else if (p.motivations.includes("scratch")) {
-    bits.push("You'd be its first and most demanding user, which is the best possible start.");
-  } else if (p.motivations.includes("income")) {
-    bits.push(`There's a plausible first paying user here: ${audience}.`);
-  } else if (p.motivations.includes("learn")) {
-    bits.push("It forces you into one unfamiliar idea rather than five.");
+    pool.push("It demos in thirty seconds, which is what a portfolio piece needs.");
+  }
+  if (p.motivations.includes("scratch")) {
+    pool.push("You'd be its first and most demanding user, which is the best possible start.");
+  }
+  if (p.motivations.includes("income")) {
+    pool.push(`There's a plausible first paying user here: ${audience}.`);
+  }
+  if (p.motivations.includes("learn")) {
+    pool.push("It forces you into one unfamiliar idea rather than five.");
+  }
+  if (p.motivations.includes("fun")) {
+    pool.push("It doesn't need to justify itself to anyone, which is the whole appeal.");
   }
 
-  if (!bits.length) bits.push("It's small enough to start today and open-ended enough to keep going.");
-  return bits.slice(0, 3).join(" ");
+  // Something specific to *this* idea, so no two cards argue the same way.
+  pool.push(`The constraint — ${twistClause.replace(/^and /, "")} — is what stops it being generic.`);
+  if (difficulty === "Gentle") pool.push("You could have something on screen tonight.");
+  if (difficulty === "Ambitious") pool.push("It's the most demanding thing on this list, deliberately.");
+
+  // Fisher–Yates on a copy, driven by the idea's own seed.
+  const shuffled = [...pool];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(r() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+
+  return [anchor, ...shuffled.slice(0, 2)].join(" ");
 }
 
 function fillSteps(templates: string[], vars: Record<string, string>): string[] {
@@ -311,7 +375,7 @@ function buildIdea(args: {
     id: fingerprint,
     title,
     pitch,
-    why: whyFor(p, d.label, who, difficulty, r),
+    why: whyFor(p, d.label, who, difficulty, mechanic.label, twist.clause, r),
     steps,
     stretch: mechanic.stretch,
     difficulty,
