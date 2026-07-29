@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookmarkIcon, LogOutIcon, UserIcon } from "lucide-react";
+import { useState } from "react";
+import { BookmarkIcon, CloudCheckIcon, EyeIcon, LogOutIcon, UserIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,15 +15,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { Wordmark } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { AuthDialog } from "@/components/auth-dialog";
 import { useKindling } from "@/lib/store";
+import { formatCode } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 export function SiteHeader() {
-  const { saved, session, signOut } = useKindling();
+  const { saved, token, syncing, signOut } = useKindling();
   const pathname = usePathname();
+  const [showCode, setShowCode] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-background/85 backdrop-blur-md">
@@ -49,22 +53,39 @@ export function SiteHeader() {
 
         <ThemeToggle />
 
-        {session?.user ? (
+        {token ? (
           <DropdownMenu>
             <DropdownMenuTrigger
               render={
                 <Button variant="ghost" size="icon" aria-label="Account">
-                  <UserIcon />
+                  {syncing ? <Spinner /> : <UserIcon />}
                 </Button>
               }
             />
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel className="max-w-56 truncate">{session.user.email}</DropdownMenuLabel>
+            <DropdownMenuContent align="end" className="w-72">
+              <DropdownMenuLabel className="flex items-center gap-2 font-normal text-muted-foreground">
+                <CloudCheckIcon className="size-3.5" />
+                {syncing ? "Syncing…" : "Saved on the server"}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
+                <DropdownMenuItem
+                  closeOnClick={false}
+                  onClick={() => setShowCode((v) => !v)}
+                >
+                  <EyeIcon />
+                  {showCode ? "Hide my code" : "Show my recovery code"}
+                </DropdownMenuItem>
+                {showCode ? (
+                  <p className="px-2 py-1.5">
+                    <code className="block rounded-md bg-muted p-2 font-mono text-xs break-all select-all">
+                      {formatCode(token)}
+                    </code>
+                  </p>
+                ) : null}
                 <DropdownMenuItem onClick={() => void signOut()}>
                   <LogOutIcon />
-                  Sign out
+                  Forget this device
                 </DropdownMenuItem>
               </DropdownMenuGroup>
             </DropdownMenuContent>

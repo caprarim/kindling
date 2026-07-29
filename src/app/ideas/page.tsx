@@ -28,7 +28,7 @@ export default function IdeasPage() {
     exhausted,
     generate,
     restart,
-    session,
+    token,
     cloudEnabled,
   } = useKindling();
   const [promptedAt, setPromptedAt] = useState(0);
@@ -41,10 +41,10 @@ export default function IdeasPage() {
 
   // One gentle nudge, the third time something is saved. Never again after that.
   useEffect(() => {
-    if (!cloudEnabled || session || saved.length < 3 || promptedAt) return;
+    if (!cloudEnabled || token || saved.length < 3 || promptedAt) return;
     setPromptedAt(saved.length);
     setAuthOpen(true);
-  }, [saved.length, session, cloudEnabled, promptedAt]);
+  }, [saved.length, token, cloudEnabled, promptedAt]);
 
   if (!ready || !profile.path) return null;
 

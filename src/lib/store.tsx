@@ -9,12 +9,19 @@ import {
   useRef,
   useState,
 } from "react";
-import type { Session } from "@supabase/supabase-js";
 import { generateIdeas } from "./engine/generate";
 import { nextQuestion } from "./engine/questions";
 import { blankValue } from "./engine/summary";
 import { emptyProfile, type Idea, type Profile, type Question } from "./engine/types";
-import { isSupabaseConfigured, supabase } from "./supabase";
+import {
+  createAccount,
+  deleteSaved,
+  fetchState,
+  isCloudConfigured,
+  loadToken,
+  storeToken,
+  syncState,
+} from "./api";
 
 const KEY = "kindling.v1";
 
@@ -56,8 +63,13 @@ type Ctx = {
   exhausted: boolean;
   generating: boolean;
   canGoBack: boolean;
-  session: Session | null;
+  /** Present when signed in. This is the bearer token, not any of the data. */
+  token: string | null;
+  syncing: boolean;
+  syncError: string | null;
   cloudEnabled: boolean;
+  createNewAccount: () => Promise<string>;
+  signInWithCode: (code: string) => Promise<void>;
   answer: (q: Question, value: string | string[]) => void;
   skip: (q: Question) => void;
   reopen: (field: keyof Profile, questionIds: string[]) => void;
@@ -77,12 +89,15 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
   const [exhausted, setExhausted] = useState(false);
   const [generating, setGenerating] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const history = useRef<Profile[]>([]);
   const mergedFor = useRef<string | null>(null);
 
   useEffect(() => {
     setState(load());
+    setToken(loadToken());
     setReady(true);
   }, []);
 
@@ -95,66 +110,71 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
     }
   }, [state, ready]);
 
-  /* ── auth + cloud sync ─────────────────────────────────────────────────── */
+  /* ── account + server sync ─────────────────────────────────────────────── */
 
-  useEffect(() => {
-    const sb = supabase();
-    if (!sb) return;
-    sb.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data: sub } = sb.auth.onAuthStateChange((_e, s) => setSession(s));
-    return () => sub.subscription.unsubscribe();
+  /** Writes whatever the server returned over the top of local state. */
+  const absorb = useCallback((remote: { saved: Idea[]; seen: string[] }) => {
+    setState((s) => {
+      const savedById = new Map(s.saved.map((i) => [i.id, i]));
+      for (const idea of remote.saved) if (idea?.id) savedById.set(idea.id, idea);
+      return {
+        ...s,
+        saved: [...savedById.values()],
+        seen: [...new Set([...s.seen, ...remote.seen])],
+      };
+    });
   }, []);
 
-  // On sign-in, fold everything made as a guest into the account, then pull
-  // down whatever that account already had. Nothing is ever lost in the swap.
+  // First sync after a token appears: everything built up as a guest goes up,
+  // and whatever the account already had comes down. Nothing is lost either way.
   useEffect(() => {
-    const sb = supabase();
-    if (!sb || !session?.user || !ready) return;
-    if (mergedFor.current === session.user.id) return;
-    mergedFor.current = session.user.id;
+    if (!ready || !token || mergedFor.current === token) return;
+    mergedFor.current = token;
 
     (async () => {
-      const guestSaved = state.saved;
-      const guestSeen = state.seen;
-
-      if (guestSaved.length) {
-        await sb.from("saved_ideas").upsert(
-          guestSaved.map((i) => ({ user_id: session.user.id, idea_id: i.id, payload: i })),
-          { onConflict: "user_id,idea_id" },
-        );
+      setSyncing(true);
+      setSyncError(null);
+      try {
+        const remote = await syncState(token, state.saved, state.seen);
+        absorb(remote);
+      } catch (err) {
+        setSyncError(err instanceof Error ? err.message : "Sync failed.");
+        mergedFor.current = null;
+      } finally {
+        setSyncing(false);
       }
-      if (guestSeen.length) {
-        await sb.from("seen_ideas").upsert(
-          guestSeen.map((id) => ({ user_id: session.user.id, idea_id: id })),
-          { onConflict: "user_id,idea_id" },
-        );
-      }
-
-      const [{ data: remoteSaved }, { data: remoteSeen }] = await Promise.all([
-        sb.from("saved_ideas").select("payload").eq("user_id", session.user.id),
-        sb.from("seen_ideas").select("idea_id").eq("user_id", session.user.id),
-      ]);
-
-      setState((s) => {
-        const savedById = new Map(s.saved.map((i) => [i.id, i]));
-        for (const row of remoteSaved ?? []) {
-          const idea = row.payload as Idea;
-          if (idea?.id) savedById.set(idea.id, idea);
-        }
-        const seen = new Set(s.seen);
-        for (const row of remoteSeen ?? []) seen.add(row.idea_id as string);
-        return { ...s, saved: [...savedById.values()], seen: [...seen] };
-      });
     })();
-  }, [session, ready, state.saved, state.seen]);
+    // Only the token should retrigger this; state is read as it stands at the time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, ready, absorb]);
 
+  /** Fire-and-forget push. The server merges, so a dropped call is not fatal. */
   const pushRemote = useCallback(
-    async (table: "saved_ideas" | "seen_ideas", rows: Record<string, unknown>[]) => {
-      const sb = supabase();
-      if (!sb || !session?.user || !rows.length) return;
-      await sb.from(table).upsert(rows, { onConflict: "user_id,idea_id" });
+    (saved: Idea[], seen: string[]) => {
+      if (!token) return;
+      syncState(token, saved, seen).catch(() => {
+        // Next save or generate will carry it up. Never block the UI on this.
+      });
     },
-    [session],
+    [token],
+  );
+
+  const createNewAccount = useCallback(async () => {
+    const code = await createAccount();
+    storeToken(code);
+    setToken(code);
+    return code;
+  }, []);
+
+  const signInWithCode = useCallback(
+    async (code: string) => {
+      // Reject the code before storing it, so a typo can't half-sign-you-in.
+      const remote = await fetchState(code);
+      storeToken(code);
+      setToken(code);
+      absorb(remote);
+    },
+    [absorb],
   );
 
   /* ── flow ──────────────────────────────────────────────────────────────── */
@@ -212,24 +232,18 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
           6,
           String(Date.now()),
         );
+        const nextSeen = [...new Set([...seen, ...ideas.map((i) => i.id)])];
         queueMicrotask(() => {
           setExhausted(ex);
-          if (session?.user) {
-            void pushRemote(
-              "seen_ideas",
-              ideas.map((i) => ({ user_id: session.user.id, idea_id: i.id })),
-            );
-          }
+          // Record the newly-shown fingerprints server-side straight away, so
+          // another device never re-offers them.
+          pushRemote(current.saved, nextSeen);
         });
-        return {
-          ...current,
-          batch: ideas,
-          seen: [...new Set([...seen, ...ideas.map((i) => i.id)])],
-        };
+        return { ...current, batch: ideas, seen: nextSeen };
       });
       setGenerating(false);
     }, 260);
-  }, [pushRemote, session]);
+  }, [pushRemote]);
 
   /** Clear one answer so the engine asks that question again. */
   const reopen = useCallback((field: keyof Profile, questionIds: string[]) => {
@@ -248,47 +262,36 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
 
   const isSaved = useCallback((id: string) => state.saved.some((i) => i.id === id), [state.saved]);
 
+  const removeSaved = useCallback(
+    (id: string) => {
+      // Sync only ever adds, so a removal needs its own call.
+      if (token) void deleteSaved(token, id).catch(() => {});
+      setState((s) => ({ ...s, saved: s.saved.filter((i) => i.id !== id) }));
+    },
+    [token],
+  );
+
   const toggleSave = useCallback(
     (idea: Idea) => {
       setState((s) => {
-        const exists = s.saved.some((i) => i.id === idea.id);
-        if (exists) {
-          const sb = supabase();
-          if (sb && session?.user) {
-            void sb
-              .from("saved_ideas")
-              .delete()
-              .eq("user_id", session.user.id)
-              .eq("idea_id", idea.id);
-          }
+        if (s.saved.some((i) => i.id === idea.id)) {
+          if (token) void deleteSaved(token, idea.id).catch(() => {});
           return { ...s, saved: s.saved.filter((i) => i.id !== idea.id) };
         }
-        void pushRemote(
-          "saved_ideas",
-          session?.user ? [{ user_id: session.user.id, idea_id: idea.id, payload: idea }] : [],
-        );
-        return { ...s, saved: [idea, ...s.saved] };
+        const saved = [idea, ...s.saved];
+        queueMicrotask(() => pushRemote(saved, s.seen));
+        return { ...s, saved };
       });
     },
-    [pushRemote, session],
+    [pushRemote, token],
   );
 
-  const removeSaved = useCallback(
-    (id: string) => {
-      const sb = supabase();
-      if (sb && session?.user) {
-        void sb.from("saved_ideas").delete().eq("user_id", session.user.id).eq("idea_id", id);
-      }
-      setState((s) => ({ ...s, saved: s.saved.filter((i) => i.id !== id) }));
-    },
-    [session],
-  );
-
+  /** Forgets the code on this device. The account and its data are untouched. */
   const signOut = useCallback(async () => {
-    const sb = supabase();
-    if (!sb) return;
-    await sb.auth.signOut();
+    storeToken(null);
+    setToken(null);
     mergedFor.current = null;
+    setSyncError(null);
   }, []);
 
   const value: Ctx = {
@@ -302,8 +305,12 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
     exhausted,
     generating,
     canGoBack: history.current.length > 0,
-    session,
-    cloudEnabled: isSupabaseConfigured,
+    token,
+    syncing,
+    syncError,
+    cloudEnabled: isCloudConfigured,
+    createNewAccount,
+    signInWithCode,
     answer,
     skip,
     reopen,

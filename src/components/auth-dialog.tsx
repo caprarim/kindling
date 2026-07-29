@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MailIcon, SparklesIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, KeyRoundIcon, ShieldIcon, TriangleAlertIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,13 +14,15 @@ import {
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { Spinner } from "@/components/ui/spinner";
 import { useKindling } from "@/lib/store";
-import { supabase } from "@/lib/supabase";
+import { formatCode } from "@/lib/api";
 
 /**
- * Signing in is always optional and never blocks anything. The dialog says so
- * out loud, because the fear it answers is "will I lose what I just made?".
+ * Accounts have no email and no password — the server mints a recovery code and
+ * only ever stores its hash. The code is both the sign-in credential and the
+ * way onto a second device, so the screen that shows it has to be emphatic.
  */
 export function AuthDialog({
   children,
@@ -31,83 +33,150 @@ export function AuthDialog({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
-  const { saved, seenCount, cloudEnabled } = useKindling();
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [message, setMessage] = useState("");
+  const { saved, seenCount, cloudEnabled, createNewAccount, signInWithCode } = useKindling();
+  const [busy, setBusy] = useState<"create" | "signin" | null>(null);
+  const [error, setError] = useState("");
+  const [newCode, setNewCode] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [code, setCode] = useState("");
 
-  async function send(e: React.FormEvent) {
-    e.preventDefault();
-    const sb = supabase();
-    if (!sb) return;
-    setStatus("sending");
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: typeof window !== "undefined" ? window.location.origin : undefined },
-    });
-    if (error) {
-      setStatus("error");
-      setMessage(error.message);
-      return;
+  async function create() {
+    setBusy("create");
+    setError("");
+    try {
+      setNewCode(await createNewAccount());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't create an account.");
+    } finally {
+      setBusy(null);
     }
-    setStatus("sent");
+  }
+
+  async function signIn(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy("signin");
+    setError("");
+    try {
+      await signInWithCode(code.trim());
+      onOpenChange?.(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Couldn't sign in.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(newCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked — the code is on screen to copy by hand.
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       {children ? <DialogTrigger render={children as React.ReactElement} /> : null}
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Keep your ideas on every device</DialogTitle>
-          <DialogDescription>
-            You&rsquo;ve saved {saved.length} {saved.length === 1 ? "idea" : "ideas"} and seen{" "}
-            {seenCount}. An account carries all of it across — nothing is lost, and nothing is
-            re-shown.
-          </DialogDescription>
-        </DialogHeader>
+        {newCode ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>Save this code somewhere</DialogTitle>
+              <DialogDescription>
+                It&rsquo;s the only way back into your account. We store a one-way hash of it, so we
+                genuinely cannot recover it for you.
+              </DialogDescription>
+            </DialogHeader>
 
-        {!cloudEnabled ? (
-          <Alert>
-            <SparklesIcon />
-            <AlertTitle>Accounts aren&rsquo;t switched on yet</AlertTitle>
-            <AlertDescription>
-              Kindling works fully without one — your ideas are saved on this device right now. Add
-              a Supabase URL and anon key to <code>.env.local</code> to turn on cross-device sync.
-            </AlertDescription>
-          </Alert>
-        ) : status === "sent" ? (
-          <Alert>
-            <MailIcon />
-            <AlertTitle>Check your email</AlertTitle>
-            <AlertDescription>
-              We sent a sign-in link to {email}. Open it on any device and your library follows you.
-            </AlertDescription>
-          </Alert>
-        ) : (
-          <form onSubmit={send}>
-            <FieldGroup>
-              <Field data-invalid={status === "error" ? true : undefined}>
-                <FieldLabel htmlFor="auth-email">Email</FieldLabel>
-                <Input
-                  id="auth-email"
-                  type="email"
-                  required
-                  autoComplete="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  aria-invalid={status === "error" ? true : undefined}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-                <FieldDescription>
-                  {status === "error" ? message : "No password. We email you a one-time link."}
-                </FieldDescription>
-              </Field>
-              <Button type="submit" disabled={status === "sending" || !email}>
-                {status === "sending" ? <Spinner data-icon="inline-start" /> : null}
-                Send me a link
+            <div className="flex flex-col gap-3">
+              <code className="rounded-lg border border-border bg-muted p-4 text-center font-mono text-sm tracking-wider break-all select-all">
+                {formatCode(newCode)}
+              </code>
+              <Button variant="outline" onClick={copy}>
+                {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
+                {copied ? "Copied" : "Copy code"}
               </Button>
-            </FieldGroup>
-          </form>
+              <Alert>
+                <TriangleAlertIcon />
+                <AlertTitle>Lose it and the library is gone</AlertTitle>
+                <AlertDescription>
+                  Paste it into a password manager. Entering it on another device brings your saved
+                  ideas — and the record of what you&rsquo;ve been shown — with you.
+                </AlertDescription>
+              </Alert>
+              <Button onClick={() => onOpenChange?.(false)}>I&rsquo;ve saved it</Button>
+            </div>
+          </>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>Keep your ideas on every device</DialogTitle>
+              <DialogDescription>
+                You&rsquo;ve saved {saved.length} {saved.length === 1 ? "idea" : "ideas"} and seen{" "}
+                {seenCount}. An account moves all of it onto the server — nothing is lost, and
+                nothing gets re-shown.
+              </DialogDescription>
+            </DialogHeader>
+
+            {!cloudEnabled ? (
+              <Alert>
+                <ShieldIcon />
+                <AlertTitle>Accounts aren&rsquo;t switched on yet</AlertTitle>
+                <AlertDescription>
+                  Kindling works fully without one. Set <code>NEXT_PUBLIC_KINDLING_API</code> to a
+                  deployed Kindling API to turn on cross-device sync.
+                </AlertDescription>
+              </Alert>
+            ) : (
+              <div className="flex flex-col gap-4">
+                {error ? (
+                  <Alert>
+                    <TriangleAlertIcon />
+                    <AlertTitle>{error}</AlertTitle>
+                  </Alert>
+                ) : null}
+
+                <Button onClick={create} disabled={busy !== null}>
+                  {busy === "create" ? <Spinner data-icon="inline-start" /> : null}
+                  Create an account
+                </Button>
+                <p className="-mt-2 text-sm text-muted-foreground">
+                  No email, no password. You get one code to keep.
+                </p>
+
+                <Separator />
+
+                <form onSubmit={signIn}>
+                  <FieldGroup>
+                    <Field data-invalid={error ? true : undefined}>
+                      <FieldLabel htmlFor="recovery-code">Already have a code?</FieldLabel>
+                      <Input
+                        id="recovery-code"
+                        value={code}
+                        autoComplete="one-time-code"
+                        placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX"
+                        aria-invalid={error ? true : undefined}
+                        onChange={(e) => setCode(e.target.value)}
+                      />
+                      <FieldDescription>
+                        Spacing and capitals don&rsquo;t matter.
+                      </FieldDescription>
+                    </Field>
+                    <Button type="submit" variant="outline" disabled={busy !== null || !code.trim()}>
+                      {busy === "signin" ? (
+                        <Spinner data-icon="inline-start" />
+                      ) : (
+                        <KeyRoundIcon data-icon="inline-start" />
+                      )}
+                      Sign in with code
+                    </Button>
+                  </FieldGroup>
+                </form>
+              </div>
+            )}
+          </>
         )}
       </DialogContent>
     </Dialog>

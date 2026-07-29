@@ -1,0 +1,17 @@
+name = "kindling-api"
+main = "src/index.ts"
+compatibility_date = "2026-07-01"
+
+[observability]
+enabled = true
+
+[vars]
+# Origins allowed to call this API. The static site lives on GitHub Pages, so
+# it reaches the Worker cross-origin.
+ALLOWED_ORIGINS = "https://caprarim.github.io,http://localhost:3000"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kindling"
+# Filled in by `wrangler d1 create kindling`.
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
