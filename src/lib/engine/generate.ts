@@ -1,17 +1,17 @@
 import { effectiveDomains } from "./questions";
 import {
   DOMAIN_BY_ID,
+  FOCUS_SHAPES,
   MECHANICS,
   MECHANIC_BY_ID,
   MOTIVATIONS,
-  NAME_ADJECTIVES,
-  NAME_SUFFIXES,
   SURFACES,
   TWISTS,
   TWIST_BY_ID,
   VIBES,
 } from "./taxonomy";
-import type { Difficulty, Idea, Profile } from "./types";
+import type { Focus } from "./taxonomy";
+import type { Appetite, Difficulty, Idea, Profile } from "./types";
 
 /* ── deterministic randomness ────────────────────────────────────────────── */
 
@@ -49,7 +49,7 @@ function weighted<T>(items: T[], weight: (t: T) => number, r: () => number): T {
   return items[items.length - 1];
 }
 
-/* ── slot pools, all derived from the profile ────────────────────────────── */
+/* ── reading the profile ─────────────────────────────────────────────────── */
 
 const SKILL_CEILING: Record<string, number> = {
   none: 0.6,
@@ -58,10 +58,29 @@ const SKILL_CEILING: Record<string, number> = {
   strong: 3.2,
 };
 
+/**
+ * How adventurous the ideas should be.
+ *
+ * This used to be its own question, which sat far too close to "why are you
+ * building it". It is read from the answers instead: what someone is building
+ * for says more about how strange they want it than a separate question does.
+ */
+export function appetiteOf(p: Profile): Appetite {
+  if (p.appetite) return p.appetite;
+  if (p.motivations.includes("fun") || p.vibes.includes("playful")) return "playful";
+  if (p.motivations.includes("income") || p.motivations.includes("scratch")) return "practical";
+  if (p.motivations.includes("learn") && (p.timeBudget === "few-months" || p.timeBudget === "open")) {
+    return "ambitious";
+  }
+  if (p.timeBudget === "open") return "ambitious";
+  return "practical";
+}
+
 function mechanicPool(p: Profile) {
   const ceiling = SKILL_CEILING[p.skillLevel ?? "learning"];
   const surfaces = new Set(p.surfaces);
-  const ambitionBoost = p.appetite === "ambitious" ? 0.9 : p.appetite === "playful" ? 0.2 : 0;
+  const appetite = appetiteOf(p);
+  const ambitionBoost = appetite === "ambitious" ? 0.9 : appetite === "playful" ? 0.2 : 0;
   const timePenalty = p.timeBudget === "weekend" ? 1.1 : p.timeBudget === "few-weeks" ? 0.4 : 0;
 
   return MECHANICS.map((m) => {
@@ -76,12 +95,13 @@ function mechanicPool(p: Profile) {
 
 function twistPool(p: Profile) {
   const fromVibes = new Set(p.vibes.flatMap((v) => VIBES.find((x) => x.id === v)?.twists ?? []));
+  const appetite = appetiteOf(p);
   const gentle = p.skillLevel === "none" || p.timeBudget === "weekend";
   return TWISTS.map((t) => {
     let w = 1;
     if (fromVibes.has(t.id)) w *= 2.6;
-    if (p.appetite === "playful" && t.weight >= 1) w *= 1.6;
-    if (p.appetite === "practical" && t.weight >= 2) w *= 0.45;
+    if (appetite === "playful" && t.weight >= 1) w *= 1.6;
+    if (appetite === "practical" && t.weight >= 2) w *= 0.45;
     if (gentle && t.weight >= 2) w *= 0.4;
     return { t, w };
   });
@@ -109,27 +129,12 @@ function audiencePool(p: Profile, domain: string): string[] {
 }
 
 function audienceLabel(id: string): string {
-  if (id === "self") return "you";
+  if (id === "self") return "its owner";
   const [d, a] = id.split(":");
   return DOMAIN_BY_ID.get(d)?.audiences.find((x) => x.id === a)?.label ?? "people";
 }
 
 /* ── copy ────────────────────────────────────────────────────────────────── */
-
-function productName(domain: string, focus: string, r: () => number): string {
-  const d = DOMAIN_BY_ID.get(domain);
-  const noun = pick(d?.nouns ?? ["thing"], r);
-  const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
-
-  const roll = r();
-  if (roll < 0.24) return `${pick(NAME_ADJECTIVES, r)} ${cap(noun)}`;
-  if (roll < 0.34) {
-    const focusWord = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus)?.label ?? "";
-    const first = focusWord.split(/[\s&]+/)[0];
-    if (first && first.length > 3 && first.length < 9) return `${cap(first)}${pick(NAME_SUFFIXES, r)}`;
-  }
-  return `${cap(noun)}${pick(NAME_SUFFIXES, r)}`;
-}
 
 function difficultyOf(mechanicWeight: number, twistWeight: number, p: Profile): Difficulty {
   const ceiling = SKILL_CEILING[p.skillLevel ?? "learning"];
@@ -151,7 +156,14 @@ function timeToFirst(d: Difficulty, p: Profile): string {
   return options[1] ?? options[0];
 }
 
-function stackFor(p: Profile, mechanicSurfaces: string[]): string[] {
+/**
+ * What this specific idea would be built with.
+ *
+ * The surface sets the base, then the shape and the constraint each add what
+ * they actually require — so a voice-driven capture tool and an offline tracker
+ * on the same surface no longer list an identical stack.
+ */
+function stackFor(p: Profile, mechanicSurfaces: string[], extras: string[]): string[] {
   const chosen = p.surfaces.length
     ? p.surfaces
     : mechanicSurfaces.length
@@ -159,139 +171,80 @@ function stackFor(p: Profile, mechanicSurfaces: string[]): string[] {
       : ["web"];
   const stack = new Set<string>();
   for (const s of chosen) {
-    const surface = SURFACES.find((x) => x.id === s);
-    surface?.stack.forEach((item) => stack.add(item));
+    SURFACES.find((x) => x.id === s)?.stack.forEach((item) => stack.add(item));
   }
-  if (p.skillLevel === "none") stack.add("An AI that writes it with you");
+  for (const extra of extras) stack.add(extra);
   return [...stack].slice(0, 4);
 }
 
 /**
- * The personalised paragraph.
+ * Lines that tie one idea to this particular person.
  *
- * The opening sentence always anchors to something the person actually said.
- * The rest is drawn from a pool using the *idea's* seed, so two ideas from the
- * same answers explain themselves differently instead of reading like a form
- * letter.
+ * Every card in a batch takes a different line by index, so six ideas from the
+ * same answers never argue for themselves the same way twice.
  */
-function whyFor(
-  p: Profile,
-  domainLabel: string,
-  audience: string,
-  difficulty: Difficulty,
-  mechanicLabel: string,
-  twistClause: string,
-  r: () => number,
-): string {
-  let anchor: string;
-  if (p.ideaText?.trim()) {
-    const said = p.ideaText.trim().slice(0, 90);
-    anchor = pick(
-      [
-        `You described wanting "${said}", and this is a sharper version of that thought.`,
-        `This came from what you wrote: "${said}".`,
-        `Take "${said}" and give it edges. That's this.`,
-      ],
-      r,
-    );
-  } else if (p.domains.length) {
-    anchor = pick(
-      [
-        `You leaned toward ${domainLabel.toLowerCase()}, so this sits squarely in it.`,
-        `This is ${domainLabel.toLowerCase()} territory, which is where the answers point.`,
-        `You picked ${domainLabel.toLowerCase()}; this is one of its more overlooked corners.`,
-      ],
-      r,
-    );
-  } else if (p.frustrations.length) {
-    anchor = pick(
-      [
-        "You named something that irritates you daily. This goes straight at it.",
-        "This is built out of the annoyance you picked, not out of a category.",
-      ],
-      r,
-    );
-  } else if (p.vibes.length) {
-    const v = VIBES.find((x) => x.id === p.vibes[0])?.label.toLowerCase() ?? "gut feel";
-    anchor = pick(
-      [`You went for "${v}", and this has exactly that shape.`, `This is about as "${v}" as it gets.`],
-      r,
-    );
-  } else {
-    anchor = "It's small enough to start today and open-ended enough to keep going.";
-  }
+function fitLines(p: Profile, focus: Focus, who: string, difficulty: Difficulty): string[] {
+  const out: string[] = [];
 
-  // Everything that could honestly be said about this idea for this person.
-  const pool: string[] = [];
+  if (p.ideaText?.trim()) {
+    out.push(`It stays close to what was described: "${p.ideaText.trim().slice(0, 90)}".`);
+  }
+  out.push(`The material is ${focus.subject}, which already exists and needs no inventing.`);
 
   if (p.skillLevel === "none") {
-    pool.push("It assumes you've never vibe coded anything: the first version is genuinely small.");
-    pool.push("You can describe this one in a sentence, which is exactly what makes it easy to prompt.");
-  } else if (p.skillLevel === "strong") {
-    pool.push("The obvious version is easy, so the interesting work is in the part you'd enjoy.");
-    pool.push(`A ${mechanicLabel.toLowerCase()} is a solved shape, which frees you to make the twist the point.`);
+    out.push("The first version is small enough to describe in one sentence, which is what makes it promptable.");
   } else if (p.skillLevel === "learning") {
-    pool.push("Each piece is small enough to ask for on its own, with one part that stretches you.");
+    out.push("Each piece is small enough to ask for on its own, with one part that genuinely stretches.");
+  } else if (p.skillLevel === "strong") {
+    out.push("The obvious version is quick, so the interesting work sits entirely in the constraint.");
   } else {
-    pool.push("It's the sort of thing you can steer an AI through in a sitting, so the fun is in the details.");
+    out.push("This is steerable in a sitting, so the effort goes into the details rather than the scaffolding.");
   }
 
-  if (p.timeBudget === "weekend") {
-    pool.push("There's a version of it that's finished by Sunday night.");
-  } else if (p.timeBudget === "open" && difficulty === "Ambitious") {
-    pool.push("With no deadline you can let this one grow properly.");
-  } else if (p.timeBudget === "few-months") {
-    pool.push("It has enough depth to still be interesting in month three.");
-  }
+  if (p.timeBudget === "weekend") out.push("There is a version of this finished by Sunday night.");
+  if (p.timeBudget === "few-weeks") out.push("A few weeks of evenings is enough to reach something genuinely usable.");
+  if (p.timeBudget === "few-months") out.push("It has enough depth to still be interesting in month three.");
+  if (p.timeBudget === "open") out.push("With no deadline it can grow at whatever pace it deserves.");
 
-  if (p.motivations.includes("portfolio")) {
-    pool.push("It demos in thirty seconds, which is what a portfolio piece needs.");
-  }
-  if (p.motivations.includes("scratch")) {
-    pool.push("You'd be its first and most demanding user, which is the best possible start.");
-  }
-  if (p.motivations.includes("income")) {
-    pool.push(`There's a plausible first paying user here: ${audience}.`);
-  }
-  if (p.motivations.includes("learn")) {
-    pool.push("It forces you into one unfamiliar idea rather than five.");
-  }
-  if (p.motivations.includes("fun")) {
-    pool.push("It doesn't need to justify itself to anyone, which is the whole appeal.");
-  }
+  if (p.motivations.includes("portfolio")) out.push("It demonstrates in thirty seconds, which is what a portfolio piece has to do.");
+  if (p.motivations.includes("scratch")) out.push("The first and most demanding user is already available, which is the best possible start.");
+  if (p.motivations.includes("income")) out.push(`There is a plausible first paying user here: ${who}.`);
+  if (p.motivations.includes("learn")) out.push("It forces one unfamiliar idea rather than five at once.");
+  if (p.motivations.includes("people")) out.push(`Somebody real can use it the week it works: ${who}.`);
+  if (p.motivations.includes("fun")) out.push("It never has to justify itself to anyone, which is the entire appeal.");
 
-  // Something specific to *this* idea, so no two cards argue the same way.
-  pool.push(`The constraint, ${twistClause.replace(/^and /, "")}, is what stops it being generic.`);
-  if (difficulty === "Gentle") pool.push("You could have something on screen tonight.");
-  if (difficulty === "Ambitious") pool.push("It's the most demanding thing on this list, deliberately.");
+  if (difficulty === "Gentle") out.push("Something usable could be on screen tonight.");
+  if (difficulty === "Ambitious") out.push("It is the most demanding thing on this list, deliberately.");
 
-  // Fisher–Yates on a copy, driven by the idea's own seed.
-  const shuffled = [...pool];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(r() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  return [anchor, ...shuffled.slice(0, 2)].join(" ");
-}
-
-function fillSteps(templates: string[], vars: Record<string, string>): string[] {
-  return templates.map((t) => t.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? ""));
+  out.push(`Nothing here needs an audience: it is worth building even if ${who} never hears about it.`);
+  return out;
 }
 
 /* ── generation ──────────────────────────────────────────────────────────── */
 
 export type GenerateResult = {
   ideas: Idea[];
-  /** True when the pool was so exhausted we had to allow repeats. */
+  /** True when the pool was so exhausted that repeats had to be allowed. */
   exhausted: boolean;
+};
+
+type Draft = {
+  domain: string;
+  focus: string;
+  problem: number;
+  audience: string;
+  mechanic: string;
+  twist: string;
+  fingerprint: string;
 };
 
 /**
  * Build `count` ideas for this profile, never returning anything whose
- * fingerprint is already in `seen`. Fingerprints are deterministic, so an idea
- * the person has been shown before can never reappear — across sessions, and
- * across devices once they have an account.
+ * fingerprint is already in `seen`.
+ *
+ * Within a single batch the shape, the constraint and the problem all have to
+ * differ. That is what stops six cards from being one idea wearing six names:
+ * each pass below relaxes one of those rules, and only the last one gives up.
  */
 export function generateIdeas(
   p: Profile,
@@ -305,92 +258,127 @@ export function generateIdeas(
 
   const r = rng(hash(JSON.stringify(p) + salt + seen.size));
 
-  const out: Idea[] = [];
-  const batchFingerprints = new Set<string>();
-  const batchShapes = new Set<string>();
+  const drafts: Draft[] = [];
+  const used = {
+    fingerprints: new Set<string>(),
+    mechanics: new Set<string>(),
+    twists: new Set<string>(),
+    problems: new Set<string>(),
+    focuses: new Set<string>(),
+  };
   let exhausted = false;
 
-  // Three passes, each looser than the last, so we always return something.
-  for (let pass = 0; pass < 3 && out.length < count; pass++) {
-    const allowShapeRepeat = pass >= 1;
-    const allowSeen = pass >= 2;
-    const attempts = 900;
+  const enoughFocuses = focuses.length >= count;
 
-    for (let i = 0; i < attempts && out.length < count; i++) {
+  // Each pass drops one variety rule, so a narrow profile still fills the page.
+  const passes = [
+    { focus: enoughFocuses, mechanic: true, twist: true, problem: true, seenOk: false },
+    { focus: false, mechanic: true, twist: true, problem: true, seenOk: false },
+    { focus: false, mechanic: false, twist: true, problem: true, seenOk: false },
+    { focus: false, mechanic: false, twist: false, problem: true, seenOk: false },
+    { focus: false, mechanic: false, twist: false, problem: false, seenOk: false },
+    { focus: false, mechanic: false, twist: false, problem: false, seenOk: true },
+  ];
+
+  for (const rules of passes) {
+    if (drafts.length >= count) break;
+
+    for (let i = 0; i < 1200 && drafts.length < count; i++) {
       const { domain, focus } = pick(focuses, r);
+      const focusDef = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
+      if (!focusDef) continue;
+
+      const problem = Math.floor(r() * focusDef.problems.length) % focusDef.problems.length;
       const audience = pick(audiencePool(p, domain), r);
-      const mechanic = weighted(mechanics, (x) => x.w, r).m;
+      // Shapes that suit this corner are far likelier, so an idea reads as
+      // something designed for the problem rather than bolted onto it.
+      const suited = FOCUS_SHAPES[`${domain}:${focus}`] ?? [];
+      const mechanic = weighted(mechanics, (x) => x.w * (suited.includes(x.m.id) ? 3.5 : 1), r).m;
       const twist = weighted(twists, (x) => x.w, r).t;
 
-      const fingerprint = `${domain}.${focus}.${audience}.${mechanic.id}.${twist.id}`;
-      const shape = `${domain}.${focus}.${mechanic.id}`;
+      const fingerprint = `${domain}.${focus}.${audience}.${mechanic.id}.${twist.id}.p${problem}`;
+      const problemKey = `${domain}.${focus}.p${problem}`;
 
-      if (batchFingerprints.has(fingerprint)) continue;
-      if (!allowSeen && seen.has(fingerprint)) continue;
-      if (!allowShapeRepeat && batchShapes.has(shape)) continue;
-      if (allowSeen && seen.has(fingerprint)) exhausted = true;
+      if (used.fingerprints.has(fingerprint)) continue;
+      if (rules.focus && used.focuses.has(`${domain}.${focus}`)) continue;
+      if (rules.mechanic && used.mechanics.has(mechanic.id)) continue;
+      if (rules.twist && used.twists.has(twist.id)) continue;
+      if (rules.problem && used.problems.has(problemKey)) continue;
+      if (!rules.seenOk && seen.has(fingerprint)) continue;
+      if (rules.seenOk && seen.has(fingerprint)) exhausted = true;
 
-      batchFingerprints.add(fingerprint);
-      batchShapes.add(shape);
-      out.push(buildIdea({ p, domain, focus, audience, mechanic: mechanic.id, twist: twist.id, fingerprint }));
+      used.fingerprints.add(fingerprint);
+      used.focuses.add(`${domain}.${focus}`);
+      used.mechanics.add(mechanic.id);
+      used.twists.add(twist.id);
+      used.problems.add(problemKey);
+
+      drafts.push({ domain, focus, problem, audience, mechanic: mechanic.id, twist: twist.id, fingerprint });
     }
   }
 
-  return { ideas: out, exhausted };
+  const usedStretches = new Set<string>();
+  const ideas = drafts.map((draft, index) => buildIdea(p, draft, index, usedStretches));
+  return { ideas, exhausted };
 }
 
-function buildIdea(args: {
-  p: Profile;
-  domain: string;
-  focus: string;
-  audience: string;
-  mechanic: string;
-  twist: string;
-  fingerprint: string;
-}): Idea {
-  const { p, domain, focus, audience, fingerprint } = args;
-  const d = DOMAIN_BY_ID.get(domain)!;
-  const mechanic = MECHANIC_BY_ID.get(args.mechanic)!;
-  const twist = TWIST_BY_ID.get(args.twist)!;
-  const focusDef = d.focuses.find((f) => f.id === focus);
+function buildIdea(p: Profile, draft: Draft, variant: number, usedStretches: Set<string>): Idea {
+  const d = DOMAIN_BY_ID.get(draft.domain)!;
+  const focus = d.focuses.find((f) => f.id === draft.focus)!;
+  const mechanic = MECHANIC_BY_ID.get(draft.mechanic)!;
+  const twist = TWIST_BY_ID.get(draft.twist)!;
 
-  const r = rng(hash(fingerprint));
-
-  const pain = pick(d.pains, r);
-  const who = audienceLabel(audience);
-  const title = productName(domain, focus, r);
+  const problem = focus.problems[draft.problem];
+  const who = audienceLabel(draft.audience);
   const difficulty = difficultyOf(mechanic.weight, twist.weight, p);
 
-  const pitch = `A ${mechanic.phrase} that helps ${who} ${pain}, ${twist.clause}.`;
+  // The name belongs to the problem, not to a bag of nouns, so two ideas about
+  // different problems can never end up as the same word with different guts.
+  const title = focus.names[draft.problem % focus.names.length];
 
-  const steps = fillSteps(mechanic.steps, {
-    focus: focusDef?.label.toLowerCase() ?? d.label.toLowerCase(),
-    audience: who,
-    domain: d.label.toLowerCase(),
-    noun: pick(d.nouns, r),
-  });
+  const lines = fitLines(p, focus, who, difficulty);
+  const why = [
+    mechanic.rationale,
+    twist.rationale,
+    lines[variant % lines.length],
+  ].join(" ");
+
+  // The focus stretch is the best one, but two cards on the same focus would
+  // otherwise repeat it, so the second falls back to the shape's own next step.
+  const stretch = usedStretches.has(focus.stretch) ? mechanic.stretch : focus.stretch;
+  usedStretches.add(stretch);
 
   return {
-    id: fingerprint,
+    id: draft.fingerprint,
     title,
-    pitch,
-    why: whyFor(p, d.label, who, difficulty, mechanic.label, twist.clause, r),
-    steps,
-    stretch: mechanic.stretch,
+    pitch: `A ${mechanic.phrase} that helps ${who} ${problem}. ${twist.sentence}`,
+    why,
+    steps: [focus.build, mechanic.step, twist.step],
+    stretch,
     difficulty,
     timeToFirst: timeToFirst(difficulty, p),
-    stack: stackFor(p, mechanic.surfaces),
-    tags: [d.label, focusDef?.label ?? "", mechanic.label, twist.label].filter(Boolean),
-    slots: { domain, focus, audience, mechanic: args.mechanic, twist: args.twist },
+    stack: stackFor(p, mechanic.surfaces, [...mechanic.stack, ...twist.stack]),
+    tags: [d.label, focus.label, mechanic.label, twist.label],
+    slots: {
+      domain: draft.domain,
+      focus: draft.focus,
+      audience: draft.audience,
+      mechanic: draft.mechanic,
+      twist: draft.twist,
+    },
     createdAt: Date.now(),
   };
 }
 
 /** Rough size of the space a profile can draw from — shown in the UI. */
 export function poolSize(p: Profile): number {
-  const focuses = focusPool(p).length;
-  const audiences = new Set(focusPool(p).flatMap((f) => audiencePool(p, f.domain))).size || 1;
-  return focuses * audiences * MECHANICS.length * TWISTS.length;
+  const pairs = focusPool(p);
+  const problems = pairs.reduce((n, { domain, focus }) => {
+    const def = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
+    return n + (def?.problems.length ?? 0);
+  }, 0);
+  const audiences = new Set(pairs.flatMap((f) => audiencePool(p, f.domain))).size || 1;
+  return problems * audiences * MECHANICS.length * TWISTS.length;
 }
 
 /**
@@ -402,8 +390,9 @@ export function poolSize(p: Profile): number {
  * could actually draw are counted.
  */
 export function countSeenInPool(p: Profile, seen: Iterable<string>): number {
-  const focuses = new Set(focusPool(p).map((f) => `${f.domain}.${f.focus}`));
-  const audiences = new Set(focusPool(p).flatMap((f) => audiencePool(p, f.domain)));
+  const pairs = focusPool(p);
+  const focuses = new Set(pairs.map((f) => `${f.domain}.${f.focus}`));
+  const audiences = new Set(pairs.flatMap((f) => audiencePool(p, f.domain)));
 
   let n = 0;
   for (const id of seen) {

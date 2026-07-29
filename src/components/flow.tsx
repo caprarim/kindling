@@ -47,10 +47,9 @@ export function Flow() {
     setText(questionId === "ideaText" ? (profile.ideaText ?? "") : "");
   }, [questionId, profile.ideaText, cancelAdvance]);
 
-  // Pre-tick anything the engine suggested (e.g. domains read from free text).
+  // Pre-tick anything the engine read out of a free-text description.
   useEffect(() => {
-    if (question?.id !== "domains") return;
-    const suggested = question.choices?.filter((c) => c.hint?.includes("matched your description"));
+    const suggested = question?.choices?.filter((c) => c.hint?.includes("matched the description"));
     if (suggested?.length) setSelection(suggested.map((c) => c.id));
   }, [question]);
 

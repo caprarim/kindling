@@ -35,7 +35,7 @@ const known = walk("has-idea", (q) => {
   if (q.id === "path") return ["has-idea"];
   if (q.kind === "text") return ["something to stop me wasting food in the fridge"];
   if (q.id === "domains") {
-    const matched = q.choices!.filter((c) => c.hint?.includes("matched your description"));
+    const matched = q.choices!.filter((c) => c.hint?.includes("matched the description"));
     if (!matched.length) throw new Error("nothing was pre-ticked from the description");
     return matched.map((c) => c.id);
   }
@@ -83,6 +83,23 @@ for (const [name, profile] of [["has-idea", known], ["floor", floor]] as const) 
     }
   }
   console.log(`âœ“ ${name}: ${total} ideas across 60 draws, zero repeats`);
+}
+
+// 6. Six ideas from one set of answers have to be six different ideas.
+for (const [name, profile] of [["has-idea", known], ["floor", floor]] as const) {
+  const { ideas: batch } = generateIdeas(profile, new Set(), 6, "variety");
+  const distinct = (values: string[]) => new Set(values).size;
+  const shapes = distinct(batch.map((i) => i.slots.mechanic));
+  const twists = distinct(batch.map((i) => i.slots.twist));
+  const pitches = distinct(batch.map((i) => i.pitch));
+  const whys = distinct(batch.map((i) => i.why));
+  if (shapes < batch.length || twists < batch.length) {
+    throw new Error(`${name}: batch repeated a shape or a constraint (${shapes} shapes, ${twists} twists)`);
+  }
+  if (pitches < batch.length || whys < batch.length) {
+    throw new Error(`${name}: batch repeated a pitch or a reason (${pitches} pitches, ${whys} reasons)`);
+  }
+  console.log(`checked ${name}: 6 ideas, ${shapes} shapes, ${twists} constraints, no repeated copy`);
 }
 
 const { ideas } = generateIdeas(known, new Set(), 3, "sample");

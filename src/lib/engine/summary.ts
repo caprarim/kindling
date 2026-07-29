@@ -2,8 +2,8 @@ import { DOMAIN_BY_ID, FRUSTRATIONS, MOTIVATIONS, SURFACES, VIBES } from "./taxo
 import type { Profile } from "./types";
 
 /**
- * Turns a profile back into readable answers, so someone can see what they
- * told us and change any single piece of it without redoing the whole flow.
+ * Turns a profile back into readable answers, so every answer can be seen and
+ * any single piece of it changed without redoing the whole flow.
  */
 export type AnswerSummary = {
   field: keyof Profile;
@@ -33,12 +33,6 @@ const TIME_LABELS: Record<string, string> = {
   open: "No deadline",
 };
 
-const APPETITE_LABELS: Record<string, string> = {
-  practical: "Obviously useful",
-  playful: "A bit strange",
-  ambitious: "Ambitious",
-};
-
 /** `domain:focus` and `domain:audience` ids back into words. */
 function pairLabel(id: string, kind: "focus" | "audience"): string {
   if (id === "self") return "Me";
@@ -65,7 +59,7 @@ export function summarise(p: Profile): AnswerSummary[] {
   };
 
   add("path", ["path"], "Starting point", [p.path ? PATH_LABELS[p.path] : undefined]);
-  add("ideaText", ["ideaText"], "What you described", [p.ideaText]);
+  add("ideaText", ["ideaText"], "The idea", [p.ideaText]);
   add(
     "domains",
     ["domains", "interests"],
@@ -77,7 +71,7 @@ export function summarise(p: Profile): AnswerSummary[] {
   add(
     "frustrations",
     ["frustrations"],
-    "What annoys you",
+    "Annoyances",
     p.frustrations.map((f) => FRUSTRATIONS.find((x) => x.id === f)?.label),
   );
   add("vibes", ["vibes"], "Gut feel", p.vibes.map((v) => VIBES.find((x) => x.id === v)?.label));
@@ -92,10 +86,6 @@ export function summarise(p: Profile): AnswerSummary[] {
     "Why",
     p.motivations.map((m) => MOTIVATIONS.find((x) => x.id === m)?.label),
   );
-  add("appetite", ["appetite"], "Lean toward", [
-    p.appetite ? APPETITE_LABELS[p.appetite] : undefined,
-  ]);
-
   return out;
 }
 

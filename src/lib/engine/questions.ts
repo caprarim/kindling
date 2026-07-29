@@ -1,4 +1,12 @@
-import { DOMAINS, DOMAIN_BY_ID, FRUSTRATIONS, MOTIVATIONS, SURFACES, VIBES } from "./taxonomy";
+import {
+  ALL_FOCUSES,
+  DOMAINS,
+  DOMAIN_BY_ID,
+  FRUSTRATIONS,
+  MOTIVATIONS,
+  SURFACES,
+  VIBES,
+} from "./taxonomy";
 import type { Choice, Profile, Question } from "./types";
 
 /**
@@ -7,12 +15,31 @@ import type { Choice, Profile, Question } from "./types";
  * There is no fixed list of screens. `nextQuestion` looks at everything the
  * person has said so far and builds the next question from it — its wording,
  * its options and even whether it gets asked at all are derived. Picking
- * "Food & cooking" produces different follow-ups than picking "Tools for
- * developers", and answering "I have no idea" walks down a completely
- * different ladder than answering "I know exactly what I want".
+ * "Food & cooking" produces different follow-ups than picking "Developer
+ * tools", and answering "I have no idea" walks down a completely different
+ * ladder than answering "I know exactly what I want".
+ *
+ * Every question earns its place by changing what gets generated. Anything
+ * that only rephrased an earlier question has been removed: how adventurous
+ * the ideas should be is read from the answers instead of asked for twice.
  */
 
 const has = (p: Profile, id: string) => p.skipped.includes(id);
+
+/** Where each question sits on the bar. Kept in one place so it stays honest. */
+const STEP = {
+  path: 0,
+  idea: 0.1,
+  domains: 0.2,
+  frustrations: 0.28,
+  vibes: 0.36,
+  focuses: 0.4,
+  audiences: 0.54,
+  skill: 0.66,
+  surfaces: 0.78,
+  time: 0.88,
+  motivations: 0.95,
+};
 
 /** Words → domains, used to read a free-text description. */
 export function detectDomains(text: string): string[] {
@@ -26,7 +53,48 @@ export function detectDomains(text: string): string[] {
   return scored.slice(0, 3).map((d) => d.id);
 }
 
-/** The domains we should generate from, whatever route got us here. */
+const STOP_WORDS = new Set([
+  "about", "after", "against", "already", "another", "because", "before",
+  "being", "between", "could", "every", "first", "från", "given", "least",
+  "makes", "making", "might", "often", "other", "people", "really", "should",
+  "since", "still", "their", "there", "these", "thing", "things", "those",
+  "through", "using", "which", "while", "would", "something", "someone",
+]);
+
+/** Meaningful words from a focus, used to match it against free text. */
+function focusWords(label: string, subject: string, problems: string[]): string[] {
+  return [...new Set(
+    `${label} ${subject} ${problems.join(" ")}`
+      .toLowerCase()
+      .split(/[^a-z]+/)
+      .filter((w) => w.length > 4 && !STOP_WORDS.has(w)),
+  )];
+}
+
+/**
+ * `domain:focus` ids a free-text description points at.
+ *
+ * Domain detection alone lands someone in "Food & cooking" and then asks the
+ * same broad question again. Matching at focus level means a description of
+ * wasted vegetables pre-selects "Using things up", not four food options.
+ */
+export function detectFocuses(text: string, domains: string[]): string[] {
+  const t = text.toLowerCase();
+  const allowed = new Set(domains);
+  const scored = ALL_FOCUSES.filter(({ domain }) => !allowed.size || allowed.has(domain.id))
+    .map(({ domain, focus }) => ({
+      id: `${domain.id}:${focus.id}`,
+      score: focusWords(focus.label, focus.subject, focus.problems).reduce(
+        (n, w) => (t.includes(w) ? n + 1 : n),
+        0,
+      ),
+    }))
+    .filter((f) => f.score > 0)
+    .sort((a, b) => b.score - a.score);
+  return scored.slice(0, 3).map((f) => f.id);
+}
+
+/** The domains ideas should be generated from, whatever route got here. */
 export function effectiveDomains(p: Profile): string[] {
   if (p.domains.length) return p.domains;
 
@@ -44,32 +112,47 @@ export function effectiveDomains(p: Profile): string[] {
 const domainChoices = (): Choice[] =>
   DOMAINS.map((d) => ({ id: d.id, label: d.label, hint: d.blurb }));
 
+const MATCH_MARKER = " (matched the description)";
+
 /** Focus options pulled from whichever domains the person actually chose. */
 function focusChoices(p: Profile): Choice[] {
   const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
+  const detected = new Set(p.ideaText ? detectFocuses(p.ideaText, picked) : []);
   const out: Choice[] = [];
+
   for (const id of picked.slice(0, 3)) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
     for (const f of d.focuses) {
+      const pairId = `${d.id}:${f.id}`;
+      // The hint says what a project here would actually work with, which is
+      // more use than restating the label in different words.
+      const base = picked.length > 1 ? `${d.label} · ${f.hint}` : f.hint;
       out.push({
-        id: `${d.id}:${f.id}`,
+        id: pairId,
         label: f.label,
-        hint: picked.length > 1 ? `${d.label} · ${f.hint}` : f.hint,
+        hint: detected.has(pairId) ? `${base}${MATCH_MARKER}` : base,
       });
     }
   }
   return out;
 }
 
-/** Audience options, likewise derived. Plus the honest "me" option. */
+/** Audience options, likewise derived. Plus the honest "just me" option. */
 function audienceChoices(p: Profile): Choice[] {
   const picked = (p.domains.length ? p.domains : effectiveDomains(p)).slice(0, 3);
-  const out: Choice[] = [{ id: "self", label: "Me", hint: "Built for one user, and that's fine" }];
+  const out: Choice[] = [
+    { id: "self", label: "Me, and nobody else", hint: "One user is a perfectly good target" },
+  ];
   for (const id of picked) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
-    for (const a of d.audiences) out.push({ id: `${d.id}:${a.id}`, label: a.label });
+    for (const a of d.audiences) {
+      out.push({
+        id: `${d.id}:${a.id}`,
+        label: a.label.charAt(0).toUpperCase() + a.label.slice(1),
+      });
+    }
   }
   return out;
 }
@@ -86,8 +169,6 @@ function surfaceChoices(p: Profile): Choice[] {
   return scored.map(({ s }) => ({ id: s.id, label: s.label, hint: s.hint }));
 }
 
-const TOTAL_STEPS = 8;
-
 export function nextQuestion(p: Profile): Question | null {
   // ── 1. Where are you starting from? ──────────────────────────────────────
   if (!p.path) {
@@ -95,18 +176,18 @@ export function nextQuestion(p: Profile): Question | null {
       id: "path",
       field: "path",
       kind: "single",
-      progress: 0,
+      progress: STEP.path,
       title: "Where are you starting from?",
-      subtitle: "There's no wrong answer here. It just decides what comes next.",
+      subtitle: "There's no wrong answer here. It only decides what comes next.",
       choices: [
         {
           id: "has-idea",
           label: "I know what I want to build",
-          hint: "You've got the thing in your head already",
+          hint: "The thing is already in your head, roughly",
         },
         {
           id: "rough-direction",
-          label: "I know roughly where to go",
+          label: "I know roughly where to look",
           hint: "A subject, a feeling, a general area",
         },
         {
@@ -125,10 +206,10 @@ export function nextQuestion(p: Profile): Question | null {
         id: "ideaText",
         field: "ideaText",
         kind: "text",
-        progress: 1 / TOTAL_STEPS,
-        title: "So, what do you want to build?",
-        subtitle: "A sentence is plenty. Rough and half-formed is exactly right.",
-        placeholder: "e.g. something that helps me stop wasting food in the fridge",
+        progress: STEP.idea,
+        title: "So, what is the thing?",
+        subtitle: "One sentence is plenty. Rough and half-formed is exactly right.",
+        placeholder: "e.g. something that stops good food rotting in the fridge",
       };
     }
     if (!p.domains.length && !has(p, "domains")) {
@@ -141,11 +222,11 @@ export function nextQuestion(p: Profile): Question | null {
           kind: "multi",
           min: 1,
           max: 3,
-          progress: 2 / TOTAL_STEPS,
+          progress: STEP.domains,
           title: `That reads like ${names[0]}.`,
-          subtitle: "Already ticked from the description. Change anything that looks off.",
+          subtitle: "Already ticked from the description. Untick anything that looks wrong.",
           choices: domainChoices().map((c) =>
-            detected.includes(c.id) ? { ...c, hint: `${c.hint} (matched your description)` } : c,
+            detected.includes(c.id) ? { ...c, hint: `${c.hint}${MATCH_MARKER}` } : c,
           ),
           escape: { label: "None of these fit" },
         };
@@ -156,9 +237,9 @@ export function nextQuestion(p: Profile): Question | null {
         kind: "multi",
         min: 1,
         max: 3,
-        progress: 2 / TOTAL_STEPS,
+        progress: STEP.domains,
         title: "Which world does that live in?",
-        subtitle: "Pick up to three. This shapes everything after it.",
+        subtitle: "Up to three. This decides which options the next questions are built from.",
         choices: domainChoices(),
         escape: { label: "None of these fit" },
       };
@@ -173,9 +254,9 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "multi",
       min: 1,
       max: 3,
-      progress: 1 / TOTAL_STEPS,
-      title: "What kind of territory are you drawn to?",
-      subtitle: "Pick up to three. Everything after this is built from that choice.",
+      progress: STEP.domains,
+      title: "Which territory pulls hardest?",
+      subtitle: "Up to three. Every option after this is built out of what gets picked here.",
       choices: domainChoices(),
       escape: { label: "None of these, really" },
     };
@@ -190,8 +271,8 @@ export function nextQuestion(p: Profile): Question | null {
         kind: "multi",
         min: 1,
         max: 3,
-        progress: 1 / TOTAL_STEPS,
-        title: "Forget building for a second. What are you into?",
+        progress: STEP.domains,
+        title: "Forget building for a second. What holds your attention?",
         subtitle: "Not what you're good at. What you'd read about on a slow evening.",
         choices: domainChoices(),
         escape: { label: "Honestly, none of these" },
@@ -210,10 +291,10 @@ export function nextQuestion(p: Profile): Question | null {
         kind: "multi",
         min: 1,
         max: 3,
-        progress: 3 / TOTAL_STEPS,
+        progress: STEP.frustrations,
         title: "Different question. What actually annoys you?",
         subtitle:
-          "You don't need interests or skills to be irritated by something. Irritation is a fine place to start a project.",
+          "Irritation needs no skills and no interests, and it is a perfectly good place to start a project.",
         choices: FRUSTRATIONS.map((f) => ({ id: f.id, label: f.label })),
         escape: { label: "None of these either" },
       };
@@ -232,15 +313,15 @@ export function nextQuestion(p: Profile): Question | null {
         kind: "multi",
         min: 2,
         max: 2,
-        progress: 4 / TOTAL_STEPS,
+        progress: STEP.vibes,
         title: "Last one, and it's pure gut feeling.",
-        subtitle: "Pick the two that appeal most. Don't overthink it, there's nothing to get right.",
+        subtitle: "Pick the two with the strongest pull. There is nothing to get right here.",
         choices: VIBES.map((v) => ({ id: v.id, label: v.label, hint: v.hint })),
       };
     }
   }
 
-  // ── 3. Narrow the territory, using their own words back at them ──────────
+  // ── 3. Narrow to a corner, using their own picks ─────────────────────────
   if (p.domains.length && !p.focuses.length && !has(p, "focuses")) {
     const labels = p.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
     return {
@@ -249,14 +330,14 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "multi",
       min: 1,
       max: 3,
-      progress: 3 / TOTAL_STEPS,
+      progress: STEP.focuses,
       title:
         labels.length === 1
           ? `Which corner of ${labels[0]}?`
           : `Which corners of ${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}?`,
-      subtitle: "These options exist because of what you just picked.",
+      subtitle: "This is the one that decides what the ideas are actually about.",
       choices: focusChoices(p),
-      escape: { label: "Show me all of it" },
+      escape: { label: "Keep the whole area in play" },
     };
   }
 
@@ -268,9 +349,9 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "multi",
       min: 1,
       max: 3,
-      progress: 4 / TOTAL_STEPS,
-      title: "Who would this be for?",
-      subtitle: "Building for one specific person beats building for everyone.",
+      progress: STEP.audiences,
+      title: "Who is on the other end of it?",
+      subtitle: "One specific person beats everyone. It changes what the thing has to do.",
       choices: audienceChoices(p),
       escape: { label: "No idea yet" },
     };
@@ -282,14 +363,14 @@ export function nextQuestion(p: Profile): Question | null {
       id: "skillLevel",
       field: "skillLevel",
       kind: "single",
-      progress: 5 / TOTAL_STEPS,
-      title: "How comfortable are you with vibe coding?",
+      progress: STEP.skill,
+      title: "How comfortable is vibe coding right now?",
       subtitle: "Telling an AI what to build and steering it. Answer for how it feels, not for what you know.",
       choices: [
         {
           id: "none",
           label: "Never tried it",
-          hint: "Every idea here will open with a gentle first step",
+          hint: "Every idea will open with a gentle first step",
         },
         {
           id: "learning",
@@ -299,31 +380,31 @@ export function nextQuestion(p: Profile): Question | null {
         {
           id: "comfortable",
           label: "Fairly comfortable",
-          hint: "You can usually prompt your way to a working thing",
+          hint: "Prompting your way to a working thing usually goes fine",
         },
         {
           id: "strong",
           label: "Very comfortable",
-          hint: "You know how to steer it. Go on then, make it interesting",
+          hint: "Steering it is second nature. Go on then, make it interesting",
         },
       ],
     };
   }
 
-  // ── 6. Shape and budget ──────────────────────────────────────────────────
+  // ── 6. Shape, time, and reason ───────────────────────────────────────────
   if (!p.surfaces.length && !has(p, "surfaces")) {
     return {
       id: "surfaces",
       field: "surfaces",
       kind: "multi",
       min: 1,
-      max: 3,
-      progress: 6 / TOTAL_STEPS,
+      max: 2,
+      progress: STEP.surfaces,
       title: "What should the thing actually be?",
       subtitle:
         p.skillLevel === "none" || p.skillLevel === "learning"
-          ? "Kindest options first."
-          : "Ordered around the comfort level just picked.",
+          ? "Kindest options first. This sets the stack every idea is written against."
+          : "Ordered around the comfort level just picked. This sets the stack each idea assumes.",
       choices: surfaceChoices(p),
       escape: { label: "Surprise me" },
     };
@@ -334,14 +415,14 @@ export function nextQuestion(p: Profile): Question | null {
       id: "timeBudget",
       field: "timeBudget",
       kind: "single",
-      progress: 7 / TOTAL_STEPS,
-      title: "How much time have you actually got?",
-      subtitle: "Be honest rather than optimistic. It changes what comes back.",
+      progress: STEP.time,
+      title: "How much time is genuinely available?",
+      subtitle: "Honest beats optimistic. It decides how big the first version is allowed to be.",
       choices: [
-        { id: "weekend", label: "A weekend", hint: "One sitting, one idea, done" },
+        { id: "weekend", label: "A weekend", hint: "One sitting, one idea, finished" },
         { id: "few-weeks", label: "A few weeks of evenings", hint: "Room for something real" },
-        { id: "few-months", label: "A few months", hint: "You can build something with depth" },
-        { id: "open", label: "No deadline", hint: "It can grow as long as it wants" },
+        { id: "few-months", label: "A few months", hint: "Enough for something with depth" },
+        { id: "open", label: "No deadline at all", hint: "It can grow for as long as it stays interesting" },
       ],
     };
   }
@@ -352,27 +433,12 @@ export function nextQuestion(p: Profile): Question | null {
       field: "motivations",
       kind: "multi",
       min: 1,
-      max: 3,
-      progress: 7.5 / TOTAL_STEPS,
-      title: "And why are you building it?",
-      subtitle: "This changes the advice more than you'd think.",
+      max: 2,
+      progress: STEP.motivations,
+      title: "Last one. What is this project for?",
+      subtitle: "This changes which ideas are worth putting in front of you more than anything else here.",
       choices: MOTIVATIONS.map((m) => ({ id: m.id, label: m.label, hint: m.hint })),
-      escape: { label: "Not sure" },
-    };
-  }
-
-  if (!p.appetite) {
-    return {
-      id: "appetite",
-      field: "appetite",
-      kind: "single",
-      progress: 8 / TOTAL_STEPS,
-      title: "Last one. Which way should it lean?",
-      choices: [
-        { id: "practical", label: "Something obviously useful", hint: "Solves a real problem, no gimmicks" },
-        { id: "playful", label: "Something a bit strange", hint: "Odd, charming, memorable" },
-        { id: "ambitious", label: "Something ambitious", hint: "Bite off more than is sensible" },
-      ],
+      escape: { label: "Not sure yet" },
     };
   }
 
