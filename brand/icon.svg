@@ -1,0 +1,63 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#4E2F1C"/>
+      <stop offset="0.55" stop-color="#3A2216"/>
+      <stop offset="1" stop-color="#281710"/>
+    </linearGradient>
+
+    <radialGradient id="hearth" cx="0" cy="0" r="1"
+      gradientTransform="translate(256 336) rotate(-90) scale(224 208)"
+      gradientUnits="userSpaceOnUse">
+      <stop stop-color="#E2732C" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#E2732C" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="flame" x1="256" y1="70" x2="256" y2="366" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFD27A"/>
+      <stop offset="0.42" stop-color="#F0913A"/>
+      <stop offset="1" stop-color="#C9501E"/>
+    </linearGradient>
+
+    <linearGradient id="core" x1="256" y1="206" x2="256" y2="342" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF3D2"/>
+      <stop offset="1" stop-color="#FFC062"/>
+    </linearGradient>
+
+    <linearGradient id="wood" x1="140" y1="392" x2="372" y2="440" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#D6A874"/>
+      <stop offset="1" stop-color="#9C6E44"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded-square brown field -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#hearth)"/>
+
+  <!-- Kindling sticks, crossed at the base -->
+  <g stroke="url(#wood)" stroke-linecap="round" stroke-width="30">
+    <path d="M150 428 L362 386"/>
+    <path d="M150 386 L362 428"/>
+  </g>
+
+  <!-- Outer flame -->
+  <path
+    d="M256 66
+       C 256 118, 244 150, 236 172
+       C 227 197, 240 214, 258 209
+       C 278 203, 291 176, 288 132
+       C 322 168, 344 205, 344 250
+       C 344 316, 305 358, 256 358
+       C 207 358, 168 316, 168 250
+       C 168 176, 226 116, 256 66 Z"
+    fill="url(#flame)"/>
+
+  <!-- Inner core, offset for depth -->
+  <path
+    d="M258 206
+       C 258 206, 214 250, 214 292
+       C 214 328, 233 348, 257 348
+       C 281 348, 300 328, 300 292
+       C 300 250, 258 206, 258 206 Z"
+    fill="url(#core)"/>
+</svg>
