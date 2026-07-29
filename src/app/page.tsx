@@ -30,21 +30,20 @@ export default function Home() {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-10 sm:gap-14 sm:py-16 lg:py-20">
-      <header className="relative isolate overflow-hidden rounded-3xl border border-border/70 px-5 py-8 sm:px-9 sm:py-12">
-        <div className="ember-wash pointer-events-none absolute inset-0 -z-10" aria-hidden />
+      <header className="flex flex-col items-start gap-6 rounded-3xl border border-border bg-card px-6 py-10 shadow-sm sm:px-10 sm:py-14">
+        <h1 className="font-heading text-[2.1rem] leading-[1.08] font-semibold tracking-tight text-balance text-card-foreground sm:text-5xl lg:text-6xl">
+          Find a project <span className="text-primary">worth building</span>.
+        </h1>
 
-        <div className="flex flex-col items-start gap-5">
-          <h1 className="font-heading text-[2rem] leading-[1.05] font-semibold tracking-tight text-balance sm:text-5xl lg:text-6xl">
-            Find a project <span className="text-ember">worth building</span>.
-          </h1>
+        <p className="max-w-xl text-base/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
+          Answer a handful of questions, each one shaped by the last, and get ideas built around what
+          you&rsquo;re into, what you can already do, and how much time you actually have.
+        </p>
 
-          <p className="max-w-xl text-base/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
-            Answer a handful of questions, each one shaped by the last, and get ideas built around
-            what you&rsquo;re into, what you can already do, and how much time you actually have.
-          </p>
-
-          <p className="text-sm text-muted-foreground">No account needed to use any of this.</p>
-        </div>
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="size-1.5 rounded-full bg-primary" aria-hidden />
+          No account needed to use any of this.
+        </p>
       </header>
 
       <section className="flex flex-col gap-5">
