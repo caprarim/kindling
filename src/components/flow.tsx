@@ -13,45 +13,25 @@ import { useKindling } from "@/lib/store";
 import { summarise } from "@/lib/engine/summary";
 import type { Question } from "@/lib/engine/types";
 
-const PICK_DELAY = 190;
-const LAST_PICK_DELAY = 280;
-const MULTI_DELAY = 1500;
-
 export function Flow() {
   const router = useRouter();
   const { ready, question, profile, answer, skip, back, canGoBack, generate } = useKindling();
 
   const [selection, setSelection] = useState<string[]>([]);
   const [text, setText] = useState("");
-  const [advancing, setAdvancing] = useState(false);
   const questionId = question?.id ?? null;
   const lastQuestion = useRef<string | null>(null);
   const finishing = useRef(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const answeredHere = useRef(false);
 
-  const cancelAdvance = useCallback(() => {
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = null;
-    setAdvancing(false);
-  }, []);
-
-  useEffect(() => cancelAdvance, [cancelAdvance]);
-
   // Reset the working answer whenever the engine moves us to a new question.
+  // Anything the description already answered arrives ticked.
   useEffect(() => {
     if (lastQuestion.current === questionId) return;
     lastQuestion.current = questionId;
-    cancelAdvance();
-    setSelection([]);
+    setSelection(question?.preselect ?? []);
     setText(questionId === "ideaText" ? (profile.ideaText ?? "") : "");
-  }, [questionId, profile.ideaText, cancelAdvance]);
-
-  // Pre-tick anything the engine read out of a free-text description.
-  useEffect(() => {
-    const suggested = question?.choices?.filter((c) => c.hint?.includes("matched the description"));
-    if (suggested?.length) setSelection(suggested.map((c) => c.id));
-  }, [question]);
+  }, [questionId, profile.ideaText, question]);
 
   useEffect(() => {
     if (question) answeredHere.current = true;
@@ -68,27 +48,20 @@ export function Flow() {
 
   const commit = useCallback(
     (q: Question, ids: string[]) => {
-      cancelAdvance();
       answer(q, q.kind === "single" ? ids[0] : ids);
     },
-    [answer, cancelAdvance],
-  );
-
-  const schedule = useCallback(
-    (q: Question, ids: string[], delay: number) => {
-      cancelAdvance();
-      setAdvancing(true);
-      timer.current = setTimeout(() => commit(q, ids), delay);
-    },
-    [cancelAdvance, commit],
+    [answer],
   );
 
   const textReady = text.trim().length > 2;
 
   const picked = useMemo(() => {
     if (!question || question.kind === "text") return null;
-    const min = question.min ?? 1;
-    return { min, max: question.max, count: selection.length, enough: selection.length >= min };
+    return {
+      min: question.min ?? 1,
+      count: selection.length,
+      prefilled: (question.preselect?.length ?? 0) > 0,
+    };
   }, [question, selection]);
 
   if (!ready || (!question && answeredHere.current)) {
@@ -103,30 +76,26 @@ export function Flow() {
 
   const q = question;
 
-  /** A pick is the answer now. Nothing to confirm, nothing to press after it. */
+  /** A pick is the answer. It moves on the moment enough has been picked. */
   function choose(ids: string[]) {
     setSelection(ids);
 
+    // A prefilled question waits: the ticks are a suggestion to correct, and
+    // committing on the first tap would throw the rest of them away.
+    if (q.preselect?.length) return;
+
     if (q.kind === "single") {
-      if (ids.length) schedule(q, ids, PICK_DELAY);
+      if (ids.length) commit(q, ids);
       return;
     }
 
-    const min = q.min ?? 1;
-    if (ids.length < min) {
-      cancelAdvance();
-      return;
-    }
-    if (q.max !== undefined && ids.length >= q.max) {
-      schedule(q, ids, LAST_PICK_DELAY);
-      return;
-    }
-    schedule(q, ids, MULTI_DELAY);
+    // Removing a tick is a correction, not an answer, so only additions move on.
+    if (ids.length <= selection.length) return;
+    if (ids.length >= (q.min ?? 1)) commit(q, ids);
   }
 
   function submitText() {
     if (!textReady) return;
-    cancelAdvance();
     answer(q, text.trim());
   }
 
@@ -199,7 +168,6 @@ export function Flow() {
             multiple={q.kind === "multi"}
             max={q.max}
             columns={columns}
-            busy={advancing}
           />
         )}
 
@@ -208,37 +176,32 @@ export function Flow() {
             aria-live="polite"
             className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
           >
-            {q.kind === "single" ? (
-              <span>{advancing ? "Locking that in…" : "One tap is the whole answer."}</span>
-            ) : (
+            {picked.prefilled ? (
+              <span>Read from your description. Change it, or carry on.</span>
+            ) : picked.min > 1 ? (
               <>
                 <span className="tabular-nums">
-                  {picked.count}
-                  {picked.max ? ` of ${picked.max}` : ""} picked
+                  {picked.count} of {picked.min} picked
                 </span>
-                {advancing ? (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span className="text-primary">moving on</span>
-                    <span
-                      aria-hidden
-                      className="h-1 w-14 overflow-hidden rounded-full bg-border sm:w-20"
-                    >
-                      <span className="animate-advance block h-full rounded-full bg-primary" />
-                    </span>
-                    <span>keep tapping to add more</span>
-                  </>
-                ) : (
-                  <>
-                    <span aria-hidden>·</span>
-                    <span>
-                      pick at least {picked.min} to carry on
-                    </span>
-                  </>
-                )}
+                <span aria-hidden>·</span>
+                <span>it carries on as soon as {picked.min} are in</span>
               </>
+            ) : (
+              <span>One tap is the whole answer.</span>
             )}
           </div>
+        ) : null}
+
+        {picked?.prefilled ? (
+          <Button
+            size="lg"
+            onClick={() => commit(q, selection)}
+            disabled={selection.length < picked.min}
+            className="h-12 w-full gap-2 rounded-full px-6 text-[0.95rem] font-medium sm:w-auto sm:self-start"
+          >
+            Carry on
+            <ArrowRightIcon className="size-4" />
+          </Button>
         ) : null}
 
         <Separator className="opacity-60" />
@@ -247,10 +210,7 @@ export function Flow() {
           {canGoBack ? (
             <Button
               variant="outline"
-              onClick={() => {
-                cancelAdvance();
-                back();
-              }}
+              onClick={back}
               className="group/back h-12 w-full justify-center gap-2.5 rounded-full py-0 pr-6 pl-3 text-[0.95rem] font-medium hover:border-primary/40 active:scale-[0.98] sm:w-auto"
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors group-hover/back:bg-primary/15 group-hover/back:text-primary">
@@ -265,10 +225,7 @@ export function Flow() {
           {q.escape ? (
             <Button
               variant="link"
-              onClick={() => {
-                cancelAdvance();
-                skip(q);
-              }}
+              onClick={() => skip(q)}
               className="h-auto justify-center px-0 text-[0.95rem] whitespace-normal sm:justify-end sm:text-right"
             >
               {q.escape.label}
@@ -334,7 +291,7 @@ function Review() {
           }}
         >
           <SparklesIcon className="size-4" />
-          Six fresh ideas
+          Three fresh ideas
         </Button>
         <Button
           variant="outline"

@@ -63,27 +63,20 @@ export type Question = {
   min?: number;
   max?: number;
   placeholder?: string;
+  /** Choice ids ticked before anyone touches it, read out of the description. */
+  preselect?: string[];
   /** Shown as a quiet "none of these" escape hatch. */
   escape?: { label: string };
   /** Roughly how far through the flow this question sits, 0–1. */
   progress: number;
 };
 
-export type Difficulty = "Gentle" | "Moderate" | "Ambitious";
-
 export type Idea = {
   /** Deterministic fingerprint of the slot combination. Also the dedupe key. */
   id: string;
   title: string;
+  /** The whole idea in plain words. This is all anyone is shown. */
   pitch: string;
-  /** Why this landed in front of *this* person, in their own terms. */
-  why: string;
-  steps: string[];
-  stretch: string;
-  difficulty: Difficulty;
-  timeToFirst: string;
-  stack: string[];
-  tags: string[];
   /** Slot ids kept for near-duplicate detection and "more like this". */
   slots: {
     domain: string;

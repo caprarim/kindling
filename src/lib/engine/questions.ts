@@ -1,5 +1,5 @@
+import { read, type Reading } from "./match";
 import {
-  ALL_FOCUSES,
   DOMAINS,
   DOMAIN_BY_ID,
   FRUSTRATIONS,
@@ -41,34 +41,25 @@ const STEP = {
   motivations: 0.95,
 };
 
-/** Words → domains, used to read a free-text description. */
-export function detectDomains(text: string): string[] {
-  const t = text.toLowerCase();
-  const scored = DOMAINS.map((d) => ({
-    id: d.id,
-    score: d.keywords.reduce((n, k) => (t.includes(k) ? n + 1 : n), 0),
-  }))
-    .filter((d) => d.score > 0)
-    .sort((a, b) => b.score - a.score);
-  return scored.slice(0, 3).map((d) => d.id);
+const readings = new Map<string, Reading>();
+
+/**
+ * The description, read once and remembered. `nextQuestion` runs on every
+ * render, and the same sentence always reads the same way.
+ */
+export function reading(text: string | undefined): Reading {
+  const t = (text ?? "").trim();
+  if (!t) return read("");
+  const cached = readings.get(t);
+  if (cached) return cached;
+  const fresh = read(t);
+  readings.set(t, fresh);
+  return fresh;
 }
 
-const STOP_WORDS = new Set([
-  "about", "after", "against", "already", "another", "because", "before",
-  "being", "between", "could", "every", "first", "från", "given", "least",
-  "makes", "making", "might", "often", "other", "people", "really", "should",
-  "since", "still", "their", "there", "these", "thing", "things", "those",
-  "through", "using", "which", "while", "would", "something", "someone",
-]);
-
-/** Meaningful words from a focus, used to match it against free text. */
-function focusWords(label: string, subject: string, problems: string[]): string[] {
-  return [...new Set(
-    `${label} ${subject} ${problems.join(" ")}`
-      .toLowerCase()
-      .split(/[^a-z]+/)
-      .filter((w) => w.length > 4 && !STOP_WORDS.has(w)),
-  )];
+/** Domains a free-text description points at. */
+export function detectDomains(text: string): string[] {
+  return reading(text).domains;
 }
 
 /**
@@ -79,19 +70,8 @@ function focusWords(label: string, subject: string, problems: string[]): string[
  * wasted vegetables pre-selects "Using things up", not four food options.
  */
 export function detectFocuses(text: string, domains: string[]): string[] {
-  const t = text.toLowerCase();
   const allowed = new Set(domains);
-  const scored = ALL_FOCUSES.filter(({ domain }) => !allowed.size || allowed.has(domain.id))
-    .map(({ domain, focus }) => ({
-      id: `${domain.id}:${focus.id}`,
-      score: focusWords(focus.label, focus.subject, focus.problems).reduce(
-        (n, w) => (t.includes(w) ? n + 1 : n),
-        0,
-      ),
-    }))
-    .filter((f) => f.score > 0)
-    .sort((a, b) => b.score - a.score);
-  return scored.slice(0, 3).map((f) => f.id);
+  return reading(text).focuses.filter((id) => !allowed.size || allowed.has(id.split(":")[0]));
 }
 
 /** The domains ideas should be generated from, whatever route got here. */
@@ -114,10 +94,17 @@ const domainChoices = (): Choice[] =>
 
 const MATCH_MARKER = " (matched the description)";
 
+/** Corners the description already pointed at, inside the domains in play. */
+function detectedFocuses(p: Profile): string[] {
+  const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
+  if (!p.ideaText || reading(p.ideaText).confidence === "none") return [];
+  return detectFocuses(p.ideaText, picked.slice(0, 3));
+}
+
 /** Focus options pulled from whichever domains the person actually chose. */
 function focusChoices(p: Profile): Choice[] {
   const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
-  const detected = new Set(p.ideaText ? detectFocuses(p.ideaText, picked) : []);
+  const detected = new Set(detectedFocuses(p));
   const out: Choice[] = [];
 
   for (const id of picked.slice(0, 3)) {
@@ -213,9 +200,11 @@ export function nextQuestion(p: Profile): Question | null {
       };
     }
     if (!p.domains.length && !has(p, "domains")) {
-      const detected = detectDomains(p.ideaText);
-      if (detected.length) {
-        const names = detected.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
+      const r = reading(p.ideaText);
+      const names = r.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
+      const heard = r.matched.slice(0, 3).join(", ");
+
+      if (r.confidence === "strong") {
         return {
           id: "domains",
           field: "domains",
@@ -224,13 +213,32 @@ export function nextQuestion(p: Profile): Question | null {
           max: 3,
           progress: STEP.domains,
           title: `That reads like ${names[0]}.`,
-          subtitle: "Already ticked from the description. Untick anything that looks wrong.",
+          subtitle: `Ticked from "${heard}" in the description. Untick anything that looks wrong.`,
           choices: domainChoices().map((c) =>
-            detected.includes(c.id) ? { ...c, hint: `${c.hint}${MATCH_MARKER}` } : c,
+            r.domains.includes(c.id) ? { ...c, hint: `${c.hint}${MATCH_MARKER}` } : c,
+          ),
+          preselect: r.domains,
+          escape: { label: "None of these fit" },
+        };
+      }
+
+      if (r.confidence === "weak") {
+        return {
+          id: "domains",
+          field: "domains",
+          kind: "multi",
+          min: 1,
+          max: 3,
+          progress: STEP.domains,
+          title: `Best guess: ${names[0]}.`,
+          subtitle: `Only "${heard}" was clear enough to go on, so this one is worth checking.`,
+          choices: domainChoices().map((c) =>
+            r.domains.includes(c.id) ? { ...c, hint: `${c.hint}${MATCH_MARKER}` } : c,
           ),
           escape: { label: "None of these fit" },
         };
       }
+
       return {
         id: "domains",
         field: "domains",
@@ -238,8 +246,9 @@ export function nextQuestion(p: Profile): Question | null {
         min: 1,
         max: 3,
         progress: STEP.domains,
-        title: "Which world does that live in?",
-        subtitle: "Up to three. This decides which options the next questions are built from.",
+        title: "That could be almost anything.",
+        subtitle:
+          "Nothing in there was specific enough to place. Pick the world it belongs in and the rest follows.",
         choices: domainChoices(),
         escape: { label: "None of these fit" },
       };
@@ -256,7 +265,7 @@ export function nextQuestion(p: Profile): Question | null {
       max: 3,
       progress: STEP.domains,
       title: "Which territory pulls hardest?",
-      subtitle: "Up to three. Every option after this is built out of what gets picked here.",
+      subtitle: "One tap and it carries on. Every option after this is built out of what gets picked here.",
       choices: domainChoices(),
       escape: { label: "None of these, really" },
     };
@@ -324,6 +333,7 @@ export function nextQuestion(p: Profile): Question | null {
   // ── 3. Narrow to a corner, using their own picks ─────────────────────────
   if (p.domains.length && !p.focuses.length && !has(p, "focuses")) {
     const labels = p.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
+    const detected = detectedFocuses(p);
     return {
       id: "focuses",
       field: "focuses",
@@ -335,14 +345,18 @@ export function nextQuestion(p: Profile): Question | null {
         labels.length === 1
           ? `Which corner of ${labels[0]}?`
           : `Which corners of ${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}?`,
-      subtitle: "This is the one that decides what the ideas are actually about.",
+      subtitle: detected.length
+        ? "The description already points at one of these. Change it if it missed."
+        : "This is the one that decides what the ideas are actually about.",
       choices: focusChoices(p),
+      preselect: detected,
       escape: { label: "Keep the whole area in play" },
     };
   }
 
   // ── 4. Who it's for ──────────────────────────────────────────────────────
   if (!p.audiences.length && !has(p, "audiences")) {
+    const r = reading(p.ideaText);
     return {
       id: "audiences",
       field: "audiences",
@@ -353,6 +367,7 @@ export function nextQuestion(p: Profile): Question | null {
       title: "Who is on the other end of it?",
       subtitle: "One specific person beats everyone. It changes what the thing has to do.",
       choices: audienceChoices(p),
+      preselect: r.audienceSelf ? ["self"] : [],
       escape: { label: "No idea yet" },
     };
   }
@@ -406,6 +421,7 @@ export function nextQuestion(p: Profile): Question | null {
           ? "Kindest options first. This sets the stack every idea is written against."
           : "Ordered around the comfort level just picked. This sets the stack each idea assumes.",
       choices: surfaceChoices(p),
+      preselect: reading(p.ideaText).surfaces,
       escape: { label: "Surprise me" },
     };
   }
@@ -424,6 +440,7 @@ export function nextQuestion(p: Profile): Question | null {
         { id: "few-months", label: "A few months", hint: "Enough for something with depth" },
         { id: "open", label: "No deadline at all", hint: "It can grow for as long as it stays interesting" },
       ],
+      preselect: reading(p.ideaText).timeBudget ? [reading(p.ideaText).timeBudget!] : [],
     };
   }
 
@@ -438,6 +455,7 @@ export function nextQuestion(p: Profile): Question | null {
       title: "Last one. What is this project for?",
       subtitle: "This changes which ideas are worth putting in front of you more than anything else here.",
       choices: MOTIVATIONS.map((m) => ({ id: m.id, label: m.label, hint: m.hint })),
+      preselect: reading(p.ideaText).motivations,
       escape: { label: "Not sure yet" },
     };
   }
