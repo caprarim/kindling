@@ -23,7 +23,6 @@ export function ChoiceGrid({
   multiple,
   max,
   columns = 2,
-  busy,
 }: {
   choices: Choice[];
   value: string[];
@@ -31,16 +30,13 @@ export function ChoiceGrid({
   multiple?: boolean;
   max?: number;
   columns?: 1 | 2;
-  busy?: boolean;
 }) {
   const atLimit = multiple && max !== undefined && value.length >= max;
-  const locked = Boolean(busy) && !multiple;
 
   return (
     <ToggleGroupPrimitive
       multiple={multiple}
       value={value}
-      aria-busy={busy || undefined}
       onValueChange={(ids: string[]) => {
         if (multiple && max !== undefined && ids.length > max) {
           // Keep the most recent picks rather than silently rejecting the click.
@@ -52,7 +48,6 @@ export function ChoiceGrid({
       className={cn(
         "grid w-full gap-2.5 sm:gap-3",
         columns === 2 ? "grid-cols-1 sm:grid-cols-2" : "grid-cols-1",
-        locked && "pointer-events-none",
       )}
     >
       {choices.map((choice) => {
@@ -69,7 +64,6 @@ export function ChoiceGrid({
               "focus-visible:ring-[3px] focus-visible:ring-ring/50",
               "aria-pressed:border-primary aria-pressed:bg-accent aria-pressed:shadow-sm",
               "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-card disabled:hover:shadow-none disabled:active:scale-100",
-              busy && !selected && "opacity-70",
             )}
           >
             <span className="flex w-full items-start justify-between gap-3">

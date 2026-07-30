@@ -38,7 +38,7 @@ export default function IdeasPage() {
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div className="flex flex-col gap-2">
             <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight text-balance sm:text-4xl">
-              Six ideas, shaped by every answer
+              Three ideas, shaped by every answer
             </h1>
             <p className="text-sm/relaxed text-muted-foreground text-pretty sm:text-base/relaxed">
               None of these has appeared before, and none of them will appear again.
@@ -52,7 +52,7 @@ export default function IdeasPage() {
               ) : (
                 <RefreshCwIcon data-icon="inline-start" />
               )}
-              Six more
+              Three more
             </Button>
             <Button variant="outline" className="rounded-full" render={<Link href="/start" />}>
               <PencilIcon data-icon="inline-start" />
@@ -90,13 +90,13 @@ export default function IdeasPage() {
       ) : null}
 
       {generating && !batch.length ? (
-        <div className="grid gap-5 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-80 w-full rounded-xl" />
+        <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <Skeleton key={i} className="h-52 w-full rounded-xl" />
           ))}
         </div>
       ) : (
-        <div className="grid items-start gap-5 md:grid-cols-2">
+        <div className="grid items-start gap-5 md:grid-cols-2 lg:grid-cols-3">
           {batch.map((idea, i) => (
             <IdeaCard key={idea.id} idea={idea} index={i} />
           ))}
@@ -107,7 +107,7 @@ export default function IdeasPage() {
         <p className="text-sm text-muted-foreground">Nothing here landed?</p>
         <Button variant="outline" className="rounded-full" onClick={generate} disabled={generating}>
           {generating ? <Spinner data-icon="inline-start" /> : <RefreshCwIcon data-icon="inline-start" />}
-          Show me six completely different ones
+          Show me three completely different ones
         </Button>
       </div>
     </div>

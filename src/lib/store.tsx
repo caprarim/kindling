@@ -229,7 +229,7 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
         const { ideas, exhausted: ex } = generateIdeas(
           current.profile,
           seen,
-          6,
+          3,
           String(Date.now()),
         );
         const nextSeen = [...new Set([...seen, ...ideas.map((i) => i.id)])];

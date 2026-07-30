@@ -192,28 +192,8 @@
   animation: kindling-rise 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Fills while the flow waits a beat before moving to the next question. */
-@keyframes kindling-advance {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-
-.animate-advance {
-  width: 100%;
-  transform-origin: left center;
-  animation: kindling-advance 1.5s linear both;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .animate-rise {
     animation: none;
-  }
-  .animate-advance {
-    animation: none;
-    transform: scaleX(1);
   }
 }
