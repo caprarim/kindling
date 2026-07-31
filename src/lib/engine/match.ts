@@ -1,9 +1,11 @@
 import { DOMAINS } from "./taxonomy";
 import {
+  AUDIENCE_LEADS,
   DOMAIN_TERMS,
   FILLER,
   FOCUS_TERMS,
   MOTIVATION_TERMS,
+  PEOPLE_WORDS,
   SELF_TERMS,
   SURFACE_TERMS,
   TIME_TERMS,
@@ -17,6 +19,8 @@ export type Reading = {
   surfaces: string[];
   motivations: string[];
   timeBudget?: string;
+  /** Who it is for, in the words they used. Empty when they never said. */
+  audience?: string;
   audienceSelf: boolean;
   matched: string[];
   leftovers: string[];
@@ -140,12 +144,34 @@ function sizeBonus(size: number): number {
   return SIZE_BONUS[Math.min(size, 4)];
 }
 
-function grams(stems: string[]): Set<string> {
-  const out = new Set<string>();
+function gramsOf(stems: string[], into: Set<string>): void {
   for (let i = 0; i < stems.length; i++) {
-    out.add(stems[i]);
-    if (i + 1 < stems.length) out.add(`${stems[i]} ${stems[i + 1]}`);
-    if (i + 2 < stems.length) out.add(`${stems[i]} ${stems[i + 1]} ${stems[i + 2]}`);
+    into.add(stems[i]);
+    if (i + 1 < stems.length) into.add(`${stems[i]} ${stems[i + 1]}`);
+    if (i + 2 < stems.length) into.add(`${stems[i]} ${stems[i + 1]} ${stems[i + 2]}`);
+  }
+}
+
+/**
+ * Every gram in the sentence, with some positions cut out.
+ *
+ * A cut breaks the run rather than closing over it, so removing "newcomers"
+ * from "for newcomers to the gym" cannot invent the phrase "for to".
+ */
+function grams(stems: string[], skip?: Set<number>): Set<string> {
+  const out = new Set<string>();
+  if (!skip?.size) {
+    gramsOf(stems, out);
+    return out;
+  }
+  let run: string[] = [];
+  for (let i = 0; i <= stems.length; i++) {
+    if (i === stems.length || skip.has(i)) {
+      if (run.length) gramsOf(run, out);
+      run = [];
+      continue;
+    }
+    run.push(stems[i]);
   }
   return out;
 }
@@ -175,17 +201,88 @@ function flatMatch(map: Record<string, string[]>, present: Set<string>): string[
   return scored.sort((a, b) => b.score - a.score).map((s) => s.id);
 }
 
+const PEOPLE = new Set(PEOPLE_WORDS.filter((w) => !w.includes(" ")).map(stem));
+const PEOPLE_PAIRS = new Set(
+  PEOPLE_WORDS.filter((w) => w.includes(" ")).map((w) => words(w).map(stem).join(" ")),
+);
+const LEAD_WORDS = new Set(AUDIENCE_LEADS.map((w) => words(w)[0]));
+const PEOPLE_ENDINGS = /(ers|ists|ians|ors)$/;
+
+function peopleWord(word: string, stemmed: string): boolean {
+  if (PEOPLE.has(stemmed)) return true;
+  return PEOPLE_ENDINGS.test(word) && word.length > 5 && !FILLER_STEMS.has(stemmed);
+}
+
+/**
+ * Who the sentence says it is for, kept in their own words.
+ *
+ * A word straight after "for" wins, because that is where people put it. Any
+ * people-shaped word elsewhere is the fallback, so "gamers keep losing clips"
+ * still knows who this is about.
+ */
+/**
+ * Where the sentence names an audience, rather than a subject.
+ *
+ * Who a thing is for is not what it is about. "An app for newcomers to the gym"
+ * is a gym idea with an audience, but "newcomers" is also the word a community
+ * tool would use, and left in the scoring it outvotes "gym" and lands the whole
+ * flow in the wrong area. These positions are cut before anything is scored.
+ *
+ * Only people introduced by "for", "helps", "built for" and the like count.
+ * People named anywhere else are usually the point rather than the audience:
+ * "I forget to message my friends" is a friends idea, and cutting the friends
+ * out of it leaves nothing worth reading.
+ */
+function peoplePositions(raw: string[], stems: string[]): Set<number> {
+  const out = new Set<number>();
+  for (let i = 0; i < raw.length - 1; i++) {
+    if (!LEAD_WORDS.has(raw[i])) continue;
+    for (let j = i + 1; j < Math.min(i + 4, raw.length); j++) {
+      if (j + 1 < raw.length && PEOPLE_PAIRS.has(`${stems[j]} ${stems[j + 1]}`)) {
+        out.add(j);
+        out.add(j + 1);
+        break;
+      }
+      if (peopleWord(raw[j], stems[j])) {
+        out.add(j);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
+function detectAudience(raw: string[], stems: string[]): string | undefined {
+  for (let i = 0; i < raw.length - 1; i++) {
+    const pair = `${stems[i]} ${stems[i + 1]}`;
+    if (PEOPLE_PAIRS.has(pair)) return `${raw[i]} ${raw[i + 1]}`;
+  }
+  for (let i = 0; i < raw.length - 1; i++) {
+    if (!LEAD_WORDS.has(raw[i])) continue;
+    for (let j = i + 1; j < Math.min(i + 4, raw.length); j++) {
+      if (peopleWord(raw[j], stems[j])) return raw[j];
+    }
+  }
+  for (let i = 0; i < raw.length; i++) {
+    if (peopleWord(raw[i], stems[i])) return raw[i];
+  }
+  return undefined;
+}
+
 const FOCUS_FLOOR = 1.6;
 const DOMAIN_FLOOR = 1.6;
 const STRONG = 3.4;
 const WEAK = 1.4;
+/** How far ahead the winning area has to be before one term can settle it. */
+const CLEAR_LEAD = 1.5;
 
-export function read(text: string): Reading {
-  const raw = words(text);
-  if (!raw.length) return EMPTY;
+type Scores = {
+  focusScores: Record<string, number>;
+  domainScores: Record<string, number>;
+  hits: Map<string, string>;
+};
 
-  const stems = raw.map(stem);
-  const present = grams(stems);
+function scoreEverything(present: Set<string>): Scores {
   const hits = new Map<string, string>();
 
   const focusScores: Record<string, number> = {};
@@ -201,7 +298,26 @@ export function read(text: string): Reading {
     if (score > 0) domainScores[d.id] = round(score);
   }
 
-  const topDomain = Math.max(0, ...Object.values(domainScores));
+  return { focusScores, domainScores, hits };
+}
+
+export function read(text: string): Reading {
+  const raw = words(text);
+  if (!raw.length) return EMPTY;
+
+  const stems = raw.map(stem);
+  const people = peoplePositions(raw, stems);
+
+  // The subject first, with the audience taken out of it. If naming the people
+  // was the only thing said, that is still a signal, so it gets read again.
+  let { focusScores, domainScores, hits } = scoreEverything(grams(stems, people));
+  if (!Object.keys(domainScores).length && people.size) {
+    ({ focusScores, domainScores, hits } = scoreEverything(grams(stems)));
+  }
+
+  const ranked = Object.values(domainScores).sort((a, b) => b - a);
+  const topDomain = ranked[0] ?? 0;
+  const runnerUp = ranked[1] ?? 0;
   const domains = Object.entries(domainScores)
     .filter(([, s]) => s >= Math.max(DOMAIN_FLOOR, topDomain * 0.45))
     .sort((a, b) => b[1] - a[1])
@@ -219,7 +335,18 @@ export function read(text: string): Reading {
     .slice(0, 3)
     .map(([id]) => id);
 
-  const evidence = hits.size > 1 || [...hits.keys()].some((k) => k.includes(" "));
+  // A corner is more specific than the area around it, so once one lands the
+  // areas come from it rather than the other way round.
+  const fromFocuses = [...new Set(focuses.map((id) => DOMAIN_OF_FOCUS.get(id) ?? ""))].filter(
+    Boolean,
+  );
+
+  // One word can be enough. "A gym app" says as much as a whole paragraph, and
+  // asking which area that belongs in reads as not having listened. What counts
+  // is how much the winning area is worth and how far clear of the next it is,
+  // not how many separate words happened to land.
+  const decisive = runnerUp === 0 || topDomain >= runnerUp * CLEAR_LEAD;
+  const evidence = hits.size > 1 || [...hits.keys()].some((k) => k.includes(" ")) || decisive;
   const confidence: Confidence =
     topDomain >= STRONG && evidence ? "strong" : topDomain >= WEAK ? "weak" : "none";
 
@@ -233,15 +360,19 @@ export function read(text: string): Reading {
     ),
   ];
 
-  const timeBudget = flatMatch(TIME_TERMS, present)[0];
+  // Shape, time and reason are read from the whole sentence: "an app for
+  // runners on my phone" says mobile, and the people in it change nothing.
+  const everything = grams(stems);
+  const timeBudget = flatMatch(TIME_TERMS, everything)[0];
 
   return {
-    domains,
+    domains: fromFocuses.length ? fromFocuses : domains,
     focuses,
-    surfaces: flatMatch(SURFACE_TERMS, present).slice(0, 2),
-    motivations: flatMatch(MOTIVATION_TERMS, present).slice(0, 2),
+    surfaces: flatMatch(SURFACE_TERMS, everything).slice(0, 2),
+    motivations: flatMatch(MOTIVATION_TERMS, everything).slice(0, 2),
     timeBudget,
-    audienceSelf: terms(SELF_TERMS, 1).some((t) => present.has(t.key)),
+    audience: detectAudience(raw, stems),
+    audienceSelf: terms(SELF_TERMS, 1).some((t) => everything.has(t.key)),
     matched,
     leftovers,
     confidence,

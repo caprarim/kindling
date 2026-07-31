@@ -57,7 +57,6 @@ export type Question = {
   field: keyof Profile;
   kind: "single" | "multi" | "text";
   title: string;
-  subtitle?: string;
   choices?: Choice[];
   /** For multi: how many must be picked before the flow moves on. */
   min?: number;

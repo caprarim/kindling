@@ -115,11 +115,6 @@ export function Flow() {
           <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight text-balance sm:text-4xl">
             {q.title}
           </h1>
-          {q.subtitle ? (
-            <p className="text-sm/relaxed text-muted-foreground text-pretty sm:text-base/relaxed">
-              {q.subtitle}
-            </p>
-          ) : null}
         </div>
 
         {q.kind === "text" ? (
@@ -177,7 +172,7 @@ export function Flow() {
             className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
           >
             {picked.prefilled ? (
-              <span>Read from your description. Change it, or carry on.</span>
+              <span>Change anything that does not fit, then carry on.</span>
             ) : picked.min > 1 ? (
               <>
                 <span className="tabular-nums">

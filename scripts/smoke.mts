@@ -1,6 +1,6 @@
 ﻿// Throwaway check of the question ladder and the never-repeat guarantee.
 // npm run smoke
-import { nextQuestion } from "../src/lib/engine/questions";
+import { applyReading, nextQuestion } from "../src/lib/engine/questions";
 import { read } from "../src/lib/engine/match";
 import { generateIdeas } from "../src/lib/engine/generate";
 import { emptyProfile, type Profile, type Question } from "../src/lib/engine/types";
@@ -18,7 +18,8 @@ function walk(name: string, choose: (q: Question, step: number) => string[] | "s
       p.skipped.push(q.id);
       continue;
     }
-    if (q.kind === "text") (p as Record<string, unknown>)[q.field] = pick[0];
+    // A description answers more than its own question, exactly as the app does.
+    if (q.kind === "text") Object.assign(p, applyReading(p, pick[0]));
     else if (q.kind === "single") (p as Record<string, unknown>)[q.field] = pick[0];
     else (p as Record<string, unknown>)[q.field] = pick;
   }
@@ -34,15 +35,14 @@ const two = (q: Question) => q.choices!.slice(0, 2).map((c) => c.id);
 // actually sends. Only the two-vibe question asks for more than one.
 const answerAs = (q: Question) => (q.id === "vibes" ? two(q) : first(q));
 
-// 1. Someone who knows what they want. The description still flags the domains
-// it matched, it just no longer pre-ticks them.
+// 1. Someone who knows what they want. Everything the sentence settled is
+// never asked about again.
+const ASKED_ANYWAY = ["domains", "focuses"];
 const known = walk("has-idea", (q) => {
   if (q.id === "path") return ["has-idea"];
   if (q.kind === "text") return ["something to stop me wasting food in the fridge"];
-  if (q.id === "domains") {
-    const matched = q.choices!.filter((c) => c.hint?.includes("matched the description"));
-    if (!matched.length) throw new Error("the description was not flagged on any domain");
-    return [matched[0].id];
+  if (ASKED_ANYWAY.includes(q.id)) {
+    throw new Error(`"${q.id}" was asked even though the description answered it`);
   }
   return answerAs(q);
 });
@@ -67,10 +67,10 @@ const floor = walk("no-idea, all escapes taken", (q, i) => {
 });
 
 // The free-text branch should have read the description.
-if (!known.domains.includes("food")) {
-  throw new Error(`free text was not read: domains=${known.domains.join(",")}`);
+if (!known.domains.includes("food") || !known.focuses.includes("food:waste")) {
+  throw new Error(`free text was not read: ${known.domains.join(",")} / ${known.focuses.join(",")}`);
 }
-console.log("âœ“ free text 'wasting food in the fridge' â†’ food domain detected");
+console.log("✓ 'wasting food in the fridge' filled the area and the corner, and neither was asked");
 
 // 5. Never repeat, across many draws.
 for (const [name, profile] of [["has-idea", known], ["floor", floor]] as const) {
@@ -208,16 +208,101 @@ for (const [a, b] of [
 }
 console.log("✓ word endings do not change the reading");
 
-// A strong reading has to actually reach the question as ticked options.
-const prefilled = nextQuestion({
-  ...emptyProfile(),
-  path: "has-idea",
-  ideaText: "a phone app that stops food rotting in my fridge, just for me",
-});
-if (!prefilled?.preselect?.includes("food")) {
-  throw new Error(`strong reading did not pre-tick: ${JSON.stringify(prefilled?.preselect)}`);
+// Naming who it is for settles that question, and those words survive all the
+// way into the pitch rather than being swapped for the nearest option.
+const clipper = applyReading(
+  { ...emptyProfile(), path: "has-idea" },
+  "I want to make a clipping tool for gamers",
+);
+if (clipper.audiences[0] !== "text:gamers" || !clipper.focuses.includes("media:shortform")) {
+  throw new Error(`clipping tool read as ${clipper.focuses.join(",")} for ${clipper.audiences.join(",")}`);
 }
-console.log("✓ a strong reading arrives pre-ticked");
+for (const id of ["domains", "focuses", "audiences"]) {
+  let walked = { ...clipper };
+  for (let i = 0; i < 20; i++) {
+    const q = nextQuestion(walked);
+    if (!q) break;
+    if (q.id === id) throw new Error(`"${id}" was asked despite being in the description`);
+    const answer = q.preselect?.length ? q.preselect : [q.choices![0].id];
+    walked = { ...walked, [q.field]: q.kind === "single" ? answer[0] : answer };
+  }
+}
+const clips = generateIdeas({ ...clipper, skillLevel: "comfortable", surfaces: ["desktop"], timeBudget: "few-weeks", motivations: ["fun"] }, new Set(), 3, "clips").ideas;
+if (!clips.every((i) => i.pitch.includes("gamers"))) {
+  throw new Error(`the audience was lost: ${clips.map((i) => i.pitch).join(" | ")}`);
+}
+if (new Set(clips.map((i) => i.pitch.split(" ").slice(0, 5).join(" "))).size < 3) {
+  throw new Error(`all three ideas open the same way: ${clips.map((i) => i.pitch).join(" | ")}`);
+}
+console.log("✓ 'a clipping tool for gamers' keeps its corner, its audience and three distinct openings");
+
+// A half-sure reading still asks, but it asks with its guess already ticked.
+const unsure = applyReading({ ...emptyProfile(), path: "has-idea" }, "a budgeting app");
+const guess = nextQuestion(unsure);
+if (guess?.id !== "domains" || !guess.preselect?.includes("money")) {
+  throw new Error(`weak reading did not offer its guess: ${JSON.stringify(guess?.preselect)}`);
+}
+if (!guess.title.endsWith("?")) {
+  throw new Error(`the guess is not a question: "${guess.title}"`);
+}
+console.log("✓ a half-sure reading asks with its guess ticked");
+
+// Who a thing is for must never decide what it is about.
+const audienceCases: [string, string, string][] = [
+  ["an app for newcomers to the gym", "health", "health:training"],
+  ["a gym app for beginners", "health", "health:training"],
+  ["a recipe app for students", "food", ""],
+  ["a clipping tool for gamers", "media", "media:shortform"],
+];
+for (const [sentence, domain, focus] of audienceCases) {
+  const r = read(sentence);
+  if (r.domains[0] !== domain || (focus && r.focuses[0] !== focus)) {
+    throw new Error(
+      `"${sentence}" read as ${r.domains}/${r.focuses}, not ${domain}/${focus}`,
+    );
+  }
+  if (r.confidence !== "strong") {
+    throw new Error(`"${sentence}" came back ${r.confidence}, so it gets asked all over again`);
+  }
+}
+console.log("✓ the audience never decides the area, and a clear sentence is not re-asked");
+
+// Nothing in the flow may quote the description back at the person.
+let echoes: Profile = { ...emptyProfile() };
+for (let i = 0; i < 20; i++) {
+  const q = nextQuestion(echoes);
+  if (!q) break;
+  const copy = [q.title, ...(q.choices ?? []).flatMap((c) => [c.label, c.hint ?? ""])];
+  for (const line of copy) {
+    if (/description|ticked from|reads like/i.test(line)) {
+      throw new Error(`${q.id} quotes the description back: "${line}"`);
+    }
+  }
+  const answer = q.kind === "text" ? ["an app for newcomers to the gym"] : [q.choices![0].id];
+  echoes = {
+    ...echoes,
+    [q.field]: q.kind === "single" || q.kind === "text" ? answer[0] : answer,
+  } as Profile;
+  if (q.field === "ideaText") echoes = applyReading(echoes, answer[0]);
+}
+console.log("✓ no screen quotes the description back");
+
+// No question may explain itself underneath. The question is the whole thing.
+let walkAll: Profile = { ...emptyProfile() };
+for (let i = 0; i < 20; i++) {
+  const q = nextQuestion(walkAll);
+  if (!q) break;
+  if ("subtitle" in q) throw new Error(`${q.id} still carries a subtitle`);
+  if (/\bthing\b/i.test(q.title) || /^so[ ,]/i.test(q.title)) {
+    throw new Error(`${q.id} asks badly: "${q.title}"`);
+  }
+  const answer = q.kind === "text" ? ["a clipping tool for gamers"] : [q.choices![0].id];
+  walkAll =
+    q.kind === "text"
+      ? applyReading(walkAll, answer[0])
+      : ({ ...walkAll, [q.field]: q.kind === "single" ? answer[0] : answer } as Profile);
+}
+console.log("✓ every question stands on its own, with no sentence underneath");
 
 const { ideas } = generateIdeas(known, new Set(), 3, "sample");
 for (const i of ideas) console.log(`\n  ${i.title}\n  ${i.pitch}`);

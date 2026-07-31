@@ -36,6 +36,7 @@ const TIME_LABELS: Record<string, string> = {
 /** `domain:focus` and `domain:audience` ids back into words. */
 function pairLabel(id: string, kind: "focus" | "audience"): string {
   if (id === "self") return "Me";
+  if (id.startsWith("text:")) return id.slice(5);
   const [domainId, itemId] = id.split(":");
   const domain = DOMAIN_BY_ID.get(domainId);
   if (!domain) return id;

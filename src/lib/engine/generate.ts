@@ -120,7 +120,9 @@ function focusPool(p: Profile): { domain: string; focus: string }[] {
 }
 
 function audiencePool(p: Profile, domain: string): string[] {
-  const chosen = p.audiences.filter((a) => a === "self" || a.startsWith(`${domain}:`));
+  const chosen = p.audiences.filter(
+    (a) => a === "self" || a.startsWith("text:") || a.startsWith(`${domain}:`),
+  );
   if (chosen.length) return chosen;
   if (p.audiences.includes("self")) return ["self"];
   const d = DOMAIN_BY_ID.get(domain);
@@ -129,6 +131,9 @@ function audiencePool(p: Profile, domain: string): string[] {
 
 function audienceLabel(id: string): string {
   if (id === "self") return "you";
+  // Someone who said who it was for gets their own words back, rather than the
+  // nearest option off a list.
+  if (id.startsWith("text:")) return id.slice(5);
   const [d, a] = id.split(":");
   return DOMAIN_BY_ID.get(d)?.audiences.find((x) => x.id === a)?.label ?? "people";
 }
@@ -193,19 +198,23 @@ export function generateIdeas(
     problems: new Set<string>(),
     focuses: new Set<string>(),
     titles: new Set<string>(),
+    audiences: new Set<string>(),
   };
   let exhausted = false;
 
   const enoughFocuses = focuses.length >= count;
+  const enoughAudiences =
+    new Set(focuses.flatMap(({ domain }) => audiencePool(p, domain))).size >= count;
 
   // Each pass drops one variety rule, so a narrow profile still fills the page.
   const passes = [
-    { focus: enoughFocuses, mechanic: true, twist: true, problem: true, seenOk: false },
-    { focus: false, mechanic: true, twist: true, problem: true, seenOk: false },
-    { focus: false, mechanic: false, twist: true, problem: true, seenOk: false },
-    { focus: false, mechanic: false, twist: false, problem: true, seenOk: false },
-    { focus: false, mechanic: false, twist: false, problem: false, seenOk: false },
-    { focus: false, mechanic: false, twist: false, problem: false, seenOk: true },
+    { focus: enoughFocuses, audience: enoughAudiences, mechanic: true, twist: true, problem: true, seenOk: false },
+    { focus: false, audience: enoughAudiences, mechanic: true, twist: true, problem: true, seenOk: false },
+    { focus: false, audience: false, mechanic: true, twist: true, problem: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: true, problem: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: false, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: false, seenOk: true },
   ];
 
   for (const rules of passes) {
@@ -232,6 +241,7 @@ export function generateIdeas(
 
       if (used.fingerprints.has(fingerprint)) continue;
       if (rules.focus && used.focuses.has(`${domain}.${focus}`)) continue;
+      if (rules.audience && used.audiences.has(audience)) continue;
       if (rules.mechanic && used.mechanics.has(mechanic.id)) continue;
       if (rules.twist && used.twists.has(twist.id)) continue;
       if (rules.problem && used.problems.has(problemKey)) continue;
@@ -241,6 +251,7 @@ export function generateIdeas(
 
       used.fingerprints.add(fingerprint);
       used.focuses.add(`${domain}.${focus}`);
+      used.audiences.add(audience);
       used.mechanics.add(mechanic.id);
       used.twists.add(twist.id);
       used.problems.add(problemKey);
@@ -250,7 +261,7 @@ export function generateIdeas(
     }
   }
 
-  const ideas = drafts.map((draft) => buildIdea(p, draft));
+  const ideas = drafts.map((draft, i) => buildIdea(p, draft, i));
   return { ideas, exhausted };
 }
 
@@ -261,7 +272,7 @@ export function generateIdeas(
  * works, and the one thing that makes it unusual. No stack, no steps, no
  * reasoning about the person, and no product-design vocabulary.
  */
-function buildIdea(p: Profile, draft: Draft): Idea {
+function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
   const d = DOMAIN_BY_ID.get(draft.domain)!;
   const focus = d.focuses.find((f) => f.id === draft.focus)!;
   const mechanic = MECHANIC_BY_ID.get(draft.mechanic)!;
@@ -271,10 +282,18 @@ function buildIdea(p: Profile, draft: Draft): Idea {
   const who = audienceLabel(draft.audience);
   const thing = thingNoun(p, mechanic.surfaces);
 
+  // Three ideas that all open "A phone app that helps X" read as one idea
+  // three times, however different the rest of the sentence is.
+  const openings = [
+    `${thing} that helps ${who} ${problem}.`,
+    `${thing} that lets ${who} ${problem}.`,
+    `For ${who}: ${thing.charAt(0).toLowerCase()}${thing.slice(1)} to ${problem}.`,
+  ];
+
   return {
     id: draft.fingerprint,
     title: draft.title,
-    pitch: `${thing} that helps ${who} ${problem}. ${mechanic.plain} ${twist.sentence}`,
+    pitch: `${openings[index % openings.length]} ${mechanic.plain} ${twist.sentence}`,
     slots: {
       domain: draft.domain,
       focus: draft.focus,

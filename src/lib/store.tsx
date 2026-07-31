@@ -10,7 +10,7 @@ import {
   useState,
 } from "react";
 import { generateIdeas } from "./engine/generate";
-import { nextQuestion } from "./engine/questions";
+import { applyReading, nextQuestion } from "./engine/questions";
 import { blankValue } from "./engine/summary";
 import { emptyProfile, type Idea, type Profile, type Question } from "./engine/types";
 import {
@@ -184,7 +184,12 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
   const applyToProfile = useCallback((q: Question, value: string | string[]) => {
     setState((s) => {
       history.current = [...history.current, s.profile];
-      const profile: Profile = { ...s.profile, [q.field]: value } as Profile;
+      // The description answers several questions at once, so it writes all of
+      // them and the engine never asks again.
+      const profile: Profile =
+        q.field === "ideaText" && typeof value === "string"
+          ? applyReading(s.profile, value)
+          : ({ ...s.profile, [q.field]: value } as Profile);
       // Answering a question un-skips it, so Back → change answer works.
       profile.skipped = s.profile.skipped.filter((id) => id !== q.id);
       return { ...s, profile };

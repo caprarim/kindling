@@ -77,13 +77,16 @@ export const FOCUS_TERMS: Record<string, string[]> = {
     "habit", "habits", "streak", "routine", "daily", "consistency", "discipline",
     "willpower", "stick to", "keep it up", "resolution", "self improvement",
     "better version of myself", "accountability", "motivation", "productive",
-    "productivity", "self control", "morning",
+    "productivity", "self control", "morning", "distraction", "distracting",
+    "deep work", "focus mode", "block websites", "blocker", "screen time",
+    "doomscrolling", "procrastinating", "time wasting", "stay focused",
     "procrastination", "morning routine", "track my day",
   ],
   "health:training": [
     "workout", "gym", "lifting", "weights", "strength", "reps", "sets",
     "programme", "program", "training", "running", "marathon", "couch to 5k",
     "progressive overload", "personal best", "exercise plan", "cardio", "fitness plan",
+    "runners", "lifters", "athletes", "gym goers", "swimmers",
   ],
   "health:sleep": [
     "sleep", "sleeping", "bedtime", "insomnia", "tired", "nap", "wake up",
@@ -137,12 +140,12 @@ export const FOCUS_TERMS: Record<string, string[]> = {
   "creative:writing": [
     "writing", "write", "writer", "novel", "fiction", "essay", "blog", "blog post",
     "draft", "blank page", "word count", "nanowrimo", "screenplay", "poetry",
-    "journal", "journalling", "storytelling", "manuscript",
+    "journal", "journalling", "storytelling", "manuscript", "writers",
   ],
   "creative:music": [
     "music", "song", "songwriting", "guitar", "piano", "drums", "band",
     "recording", "mixing", "ableton", "chords", "scales", "riff", "loop",
-    "practice sessions", "producing", "beat",
+    "practice sessions", "producing", "beat", "musicians", "bands",
   ],
   "creative:visual": [
     "drawing", "sketch", "sketching", "illustration", "art style", "digital art",
@@ -157,7 +160,7 @@ export const FOCUS_TERMS: Record<string, string[]> = {
   "media:archive": [
     "photo library", "unsorted photos", "backup", "duplicate photos",
     "google photos", "organise photos", "organize photos", "tagging", "metadata",
-    "hard drive", "archive", "thousands of photos", "camera roll",
+    "hard drive", "archive", "thousands of photos", "camera roll", "photographers",
   ],
   "media:shortform": [
     "short form", "tiktok", "reels", "shorts", "clip", "clipping", "hook",
@@ -167,6 +170,7 @@ export const FOCUS_TERMS: Record<string, string[]> = {
   "media:podcast": [
     "podcast", "episode", "audio editing", "transcript", "rss", "interview",
     "microphone", "trimming silence", "publishing", "show notes", "guest",
+    "podcasters",
   ],
   "media:familymedia": [
     "family photos", "old tapes", "vhs", "scanning", "album", "memories",
@@ -181,7 +185,7 @@ export const FOCUS_TERMS: Record<string, string[]> = {
   "games:videogames": [
     "backlog", "steam", "console", "co-op", "multiplayer", "achievements",
     "playtime", "what to play next", "game library", "playstation", "xbox",
-    "switch", "speedrun",
+    "switch", "speedrun", "gamers",
   ],
   "games:gamedev": [
     "game dev", "make a game", "godot", "unity", "unreal", "prototype",
@@ -260,7 +264,7 @@ export const FOCUS_TERMS: Record<string, string[]> = {
   "outdoors:walking": [
     "walk", "walking", "hike", "hiking", "cycling", "bike ride", "route",
     "trail", "gpx", "pace", "elevation", "distance", "strava", "footpath",
-    "ordnance survey",
+    "ordnance survey", "hikers", "cyclists", "walkers", "climbers",
   ],
   "outdoors:nature": [
     "nature", "birds", "birdwatching", "wildlife", "seasons", "foraging",
@@ -333,6 +337,27 @@ export const TIME_TERMS: Record<string, string[]> = {
   "few-months": ["few months", "long project", "several months"],
   open: ["no deadline", "no rush", "whenever", "ongoing", "forever project"],
 };
+
+export const PEOPLE_WORDS = [
+  "gamers", "gamer", "developers", "developer", "programmers", "coders",
+  "designers", "founders", "creators", "streamers", "youtubers", "editors",
+  "photographers", "podcasters", "writers", "artists", "musicians", "bands",
+  "students", "pupils", "teachers", "tutors", "lecturers", "learners",
+  "parents", "mums", "dads", "kids", "children", "families", "couples",
+  "housemates", "flatmates", "roommates", "neighbours", "neighbors",
+  "friends", "colleagues", "managers", "teams", "beginners", "newcomers",
+  "freelancers", "contractors", "clients", "customers", "shoppers",
+  "runners", "cyclists", "hikers", "campers", "climbers", "swimmers",
+  "athletes", "coaches", "lifters", "yogis", "walkers",
+  "cooks", "bakers", "hosts", "vegans", "vegetarians",
+  "nurses", "doctors", "patients", "therapists", "carers", "volunteers",
+  "renters", "landlords", "gardeners", "knitters", "makers", "hobbyists",
+  "readers", "researchers", "travellers", "travelers", "commuters",
+  "dungeon masters", "game masters", "dungeon master", "players",
+  "small teams", "solo developers", "small businesses", "side hustlers",
+];
+
+export const AUDIENCE_LEADS = ["for", "aimed at", "helps", "so that", "used by", "built for"];
 
 export const SELF_TERMS = [
   "for me", "for myself", "just me", "my own", "nobody else", "only i",

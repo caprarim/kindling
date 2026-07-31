@@ -40,9 +40,6 @@ export default function IdeasPage() {
             <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight text-balance sm:text-4xl">
               Three ideas, shaped by every answer
             </h1>
-            <p className="text-sm/relaxed text-muted-foreground text-pretty sm:text-base/relaxed">
-              None of these has appeared before, and none of them will appear again.
-            </p>
           </div>
 
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">

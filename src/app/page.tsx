@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowRightIcon, BookmarkIcon, ShuffleIcon, SparklesIcon } from "lucide-react";
+import { ArrowRightIcon, SparklesIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChoiceGrid } from "@/components/choice-grid";
 import { Mark } from "@/components/logo";
@@ -21,24 +21,26 @@ export default function Home() {
   const first = nextQuestion(emptyProfile())!;
   const inProgress = ready && Boolean(profile.path);
 
+  // Answering here always begins a new run, even when the answer is the same one
+  // as last time. "Carry on" is the only way back into an unfinished run, so a
+  // fresh start is never haunted by ticks nobody asked for.
   function choose(ids: string[]) {
     if (!ids.length) return;
-    if (profile.path && profile.path !== ids[0]) restart();
+    if (profile.path) restart();
     answer(first, ids[0]);
     router.push("/start");
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-10 px-4 py-8 sm:gap-14 sm:px-6 sm:py-16 lg:py-20">
+    <div className="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-10 px-4 py-8 sm:gap-14 sm:px-6 sm:py-16 lg:py-20">
       <header className="ember-wash flex flex-col items-start gap-5 rounded-3xl border border-border bg-card px-5 py-8 shadow-sm sm:gap-6 sm:px-10 sm:py-14">
         <h1 className="font-heading text-[2rem] leading-[1.08] font-semibold tracking-tight text-balance text-card-foreground sm:text-5xl lg:text-6xl">
           Find a project <span className="text-primary">worth building</span>.
         </h1>
 
         <p className="max-w-xl text-[0.95rem]/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
-          Made for vibe coders, the kind who build by telling an AI what they want. A handful of
-          plain questions, each one shaped by the last, then ideas built around real interests and
-          the time actually available. No jargon, no languages to name, no test to pass.
+          Made for vibe coders. A few plain questions, each one shaped by the last, then ideas that
+          fit your interests and the time you actually have. No jargon, no test to pass.
         </p>
       </header>
 
@@ -49,10 +51,6 @@ export default function Home() {
             {first.title}
           </h2>
         </div>
-        <p className="-mt-3 text-sm text-muted-foreground text-pretty sm:text-base">
-          {first.subtitle}
-        </p>
-
         <ChoiceGrid choices={first.choices ?? []} value={[]} onChange={choose} columns={1} />
 
         {inProgress ? (
@@ -80,24 +78,6 @@ export default function Home() {
         ) : null}
       </section>
 
-      <section className="grid gap-7 border-t border-border/60 pt-9 sm:grid-cols-3 sm:gap-6 sm:pt-10">
-        <Feature
-          icon={<ShuffleIcon className="size-4" />}
-          title="Never the same idea twice"
-          body="Every idea gets a fingerprint. Once it has been shown, it is retired for good, even across sessions."
-        />
-        <Feature
-          icon={<SparklesIcon className="size-4" />}
-          title="Questions that adapt"
-          body="Pick cooking and the follow-ups turn to cooking. Say vibe coding is new and the whole path changes."
-        />
-        <Feature
-          icon={<BookmarkIcon className="size-4" />}
-          title="Saved the moment it is tapped"
-          body="Ideas land in the library straight away. No account, no email, nothing to set up first."
-        />
-      </section>
-
       {saved.length || seenCount ? (
         <p className="text-sm text-muted-foreground">
           {seenCount} {seenCount === 1 ? "idea" : "ideas"} shown so far, {saved.length} kept.{" "}
@@ -111,14 +91,3 @@ export default function Home() {
   );
 }
 
-function Feature({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="flex size-9 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
-        {icon}
-      </span>
-      <h3 className="font-heading font-medium tracking-tight">{title}</h3>
-      <p className="text-sm/relaxed text-muted-foreground text-pretty">{body}</p>
-    </div>
-  );
-}

@@ -63,6 +63,33 @@ export function detectDomains(text: string): string[] {
 }
 
 /**
+ * Everything the description already settled, written into the profile.
+ *
+ * Anything answered here is never asked. Someone who typed "a clipping tool
+ * for gamers" has already said the area, the corner and who it is for, and
+ * being asked again reads as not having been listened to. All of it stays
+ * changeable from the review screen.
+ */
+export function applyReading(p: Profile, text: string): Profile {
+  const r = reading(text);
+  const next: Profile = { ...p, ideaText: text };
+
+  if (r.confidence === "strong") {
+    if (!next.domains.length) next.domains = r.domains;
+    if (!next.focuses.length) next.focuses = r.focuses;
+  }
+  if (!next.audiences.length) {
+    if (r.audience) next.audiences = [`text:${r.audience}`];
+    else if (r.audienceSelf) next.audiences = ["self"];
+  }
+  if (!next.surfaces.length && r.surfaces.length) next.surfaces = r.surfaces;
+  if (!next.motivations.length && r.motivations.length) next.motivations = r.motivations;
+  if (!next.timeBudget && r.timeBudget) next.timeBudget = r.timeBudget as Profile["timeBudget"];
+
+  return next;
+}
+
+/**
  * `domain:focus` ids a free-text description points at.
  *
  * Domain detection alone lands someone in "Food & cooking" and then asks the
@@ -92,8 +119,6 @@ export function effectiveDomains(p: Profile): string[] {
 const domainChoices = (): Choice[] =>
   DOMAINS.map((d) => ({ id: d.id, label: d.label, hint: d.blurb }));
 
-const MATCH_MARKER = " (matched the description)";
-
 /** Corners the description already pointed at, inside the domains in play. */
 function detectedFocuses(p: Profile): string[] {
   const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
@@ -104,21 +129,18 @@ function detectedFocuses(p: Profile): string[] {
 /** Focus options pulled from whichever domains the person actually chose. */
 function focusChoices(p: Profile): Choice[] {
   const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
-  const detected = new Set(detectedFocuses(p));
   const out: Choice[] = [];
 
   for (const id of picked.slice(0, 3)) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
     for (const f of d.focuses) {
-      const pairId = `${d.id}:${f.id}`;
       // The hint says what a project here would actually work with, which is
       // more use than restating the label in different words.
-      const base = picked.length > 1 ? `${d.label} · ${f.hint}` : f.hint;
       out.push({
-        id: pairId,
+        id: `${d.id}:${f.id}`,
         label: f.label,
-        hint: detected.has(pairId) ? `${base}${MATCH_MARKER}` : base,
+        hint: picked.length > 1 ? `${d.label} · ${f.hint}` : f.hint,
       });
     }
   }
@@ -128,9 +150,13 @@ function focusChoices(p: Profile): Choice[] {
 /** Audience options, likewise derived. Plus the honest "just me" option. */
 function audienceChoices(p: Profile): Choice[] {
   const picked = (p.domains.length ? p.domains : effectiveDomains(p)).slice(0, 3);
+  const named = reading(p.ideaText).audience;
   const out: Choice[] = [
     { id: "self", label: "Me, and nobody else", hint: "One user is a perfectly good target" },
   ];
+  if (named) {
+    out.unshift({ id: `text:${named}`, label: named, hint: "The people you already named" });
+  }
   for (const id of picked) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
@@ -165,12 +191,11 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "single",
       progress: STEP.path,
       title: "Where are you starting from?",
-      subtitle: "There's no wrong answer here. It only decides what comes next.",
       choices: [
         {
           id: "has-idea",
           label: "I know what I want to build",
-          hint: "The thing is already in your head, roughly",
+          hint: "It is already in your head, roughly",
         },
         {
           id: "rough-direction",
@@ -194,17 +219,17 @@ export function nextQuestion(p: Profile): Question | null {
         field: "ideaText",
         kind: "text",
         progress: STEP.idea,
-        title: "So, what is the thing?",
-        subtitle: "One sentence is plenty. Rough and half-formed is exactly right.",
-        placeholder: "e.g. something that stops good food rotting in the fridge",
+        title: "What do you want to build?",
+        placeholder: "e.g. a clipping tool for gamers",
       };
     }
     if (!p.domains.length && !has(p, "domains")) {
       const r = reading(p.ideaText);
       const names = r.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
-      const heard = r.matched.slice(0, 3).join(", ");
 
-      if (r.confidence === "strong") {
+      // A half-sure reading asks rather than assumes, but it asks as a question
+      // with a real answer in it, not as a statement about what was typed.
+      if (r.confidence === "weak" && names.length) {
         return {
           id: "domains",
           field: "domains",
@@ -212,29 +237,9 @@ export function nextQuestion(p: Profile): Question | null {
           min: 1,
           max: 3,
           progress: STEP.domains,
-          title: `That reads like ${names[0]}.`,
-          subtitle: `Ticked from "${heard}" in the description. Untick anything that looks wrong.`,
-          choices: domainChoices().map((c) =>
-            r.domains.includes(c.id) ? { ...c, hint: `${c.hint}${MATCH_MARKER}` } : c,
-          ),
+          title: `Is this ${names[0]}, or something else?`,
+          choices: domainChoices(),
           preselect: r.domains,
-          escape: { label: "None of these fit" },
-        };
-      }
-
-      if (r.confidence === "weak") {
-        return {
-          id: "domains",
-          field: "domains",
-          kind: "multi",
-          min: 1,
-          max: 3,
-          progress: STEP.domains,
-          title: `Best guess: ${names[0]}.`,
-          subtitle: `Only "${heard}" was clear enough to go on, so this one is worth checking.`,
-          choices: domainChoices().map((c) =>
-            r.domains.includes(c.id) ? { ...c, hint: `${c.hint}${MATCH_MARKER}` } : c,
-          ),
           escape: { label: "None of these fit" },
         };
       }
@@ -246,9 +251,7 @@ export function nextQuestion(p: Profile): Question | null {
         min: 1,
         max: 3,
         progress: STEP.domains,
-        title: "That could be almost anything.",
-        subtitle:
-          "Nothing in there was specific enough to place. Pick the world it belongs in and the rest follows.",
+        title: "Which area does it belong in?",
         choices: domainChoices(),
         escape: { label: "None of these fit" },
       };
@@ -264,8 +267,7 @@ export function nextQuestion(p: Profile): Question | null {
       min: 1,
       max: 3,
       progress: STEP.domains,
-      title: "Which territory pulls hardest?",
-      subtitle: "One tap and it carries on. Every option after this is built out of what gets picked here.",
+      title: "Which area pulls hardest?",
       choices: domainChoices(),
       escape: { label: "None of these, really" },
     };
@@ -281,8 +283,7 @@ export function nextQuestion(p: Profile): Question | null {
         min: 1,
         max: 3,
         progress: STEP.domains,
-        title: "What holds your attention?",
-        subtitle: "Not what you're good at. What you'd read about on a slow evening.",
+        title: "What holds your attention on a slow evening?",
         choices: domainChoices(),
         escape: { label: "Honestly, none of these" },
       };
@@ -301,9 +302,7 @@ export function nextQuestion(p: Profile): Question | null {
         min: 1,
         max: 3,
         progress: STEP.frustrations,
-        title: "Different question. What actually annoys you?",
-        subtitle:
-          "Irritation needs no skills and no interests, and it is a perfectly good place to start a project.",
+        title: "What actually annoys you?",
         choices: FRUSTRATIONS.map((f) => ({ id: f.id, label: f.label })),
         escape: { label: "None of these either" },
       };
@@ -323,8 +322,7 @@ export function nextQuestion(p: Profile): Question | null {
         min: 2,
         max: 2,
         progress: STEP.vibes,
-        title: "Last one, and it's pure gut feeling.",
-        subtitle: "Pick the two with the strongest pull. There is nothing to get right here.",
+        title: "Which two have the strongest pull?",
         choices: VIBES.map((v) => ({ id: v.id, label: v.label, hint: v.hint })),
       };
     }
@@ -345,9 +343,6 @@ export function nextQuestion(p: Profile): Question | null {
         labels.length === 1
           ? `Which corner of ${labels[0]}?`
           : `Which corners of ${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}?`,
-      subtitle: detected.length
-        ? "The description already points at one of these. Change it if it missed."
-        : "This is the one that decides what the ideas are actually about.",
       choices: focusChoices(p),
       preselect: detected,
       escape: { label: "Keep the whole area in play" },
@@ -364,8 +359,7 @@ export function nextQuestion(p: Profile): Question | null {
       min: 1,
       max: 3,
       progress: STEP.audiences,
-      title: "Who is on the other end of it?",
-      subtitle: "One specific person beats everyone. It changes what the thing has to do.",
+      title: "Who is it for?",
       choices: audienceChoices(p),
       preselect: r.audienceSelf ? ["self"] : [],
       escape: { label: "No idea yet" },
@@ -380,7 +374,6 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "single",
       progress: STEP.skill,
       title: "How comfortable is vibe coding right now?",
-      subtitle: "Telling an AI what to build and steering it. Answer for how it feels, not for what you know.",
       choices: [
         {
           id: "none",
@@ -415,11 +408,7 @@ export function nextQuestion(p: Profile): Question | null {
       min: 1,
       max: 2,
       progress: STEP.surfaces,
-      title: "What should the thing actually be?",
-      subtitle:
-        p.skillLevel === "none" || p.skillLevel === "learning"
-          ? "Kindest options first. This sets the stack every idea is written against."
-          : "Ordered around the comfort level just picked. This sets the stack each idea assumes.",
+      title: "What should it be built as?",
       choices: surfaceChoices(p),
       preselect: reading(p.ideaText).surfaces,
       escape: { label: "Surprise me" },
@@ -433,7 +422,6 @@ export function nextQuestion(p: Profile): Question | null {
       kind: "single",
       progress: STEP.time,
       title: "How much time is genuinely available?",
-      subtitle: "Honest beats optimistic. It decides how big the first version is allowed to be.",
       choices: [
         { id: "weekend", label: "A weekend", hint: "One sitting, one idea, finished" },
         { id: "few-weeks", label: "A few weeks of evenings", hint: "Room for something real" },
@@ -452,8 +440,7 @@ export function nextQuestion(p: Profile): Question | null {
       min: 1,
       max: 2,
       progress: STEP.motivations,
-      title: "Last one. What is this project for?",
-      subtitle: "This changes which ideas are worth putting in front of you more than anything else here.",
+      title: "Why are you building it?",
       choices: MOTIVATIONS.map((m) => ({ id: m.id, label: m.label, hint: m.hint })),
       preselect: reading(p.ideaText).motivations,
       escape: { label: "Not sure yet" },

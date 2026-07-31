@@ -1158,7 +1158,7 @@ export const MECHANICS: Mechanic[] = [
     id: "companion",
     label: "Companion app",
     phrase: "companion app",
-    plain: "It sits beside you while you are actually doing the thing.",
+    plain: "It sits beside you while you are in the middle of it.",
     weight: 1,
     surfaces: ["mobile", "web"],
     rationale: "It runs alongside the activity, so it has to work one-handed, in bad light, without signal.",

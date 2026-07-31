@@ -37,7 +37,7 @@ export function IdeaCard({
         </CardDescription>
       </CardHeader>
 
-      <CardFooter className="flex-wrap gap-2">
+      <CardFooter className="mt-auto flex-wrap gap-2">
         <Button
           variant={saved ? "secondary" : "outline"}
           size="sm"
