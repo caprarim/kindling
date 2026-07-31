@@ -281,7 +281,7 @@ export function nextQuestion(p: Profile): Question | null {
         min: 1,
         max: 3,
         progress: STEP.domains,
-        title: "Forget building for a second. What holds your attention?",
+        title: "What holds your attention?",
         subtitle: "Not what you're good at. What you'd read about on a slow evening.",
         choices: domainChoices(),
         escape: { label: "Honestly, none of these" },
