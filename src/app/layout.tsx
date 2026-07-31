@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { KindlingProvider } from "@/lib/store";
+import { SITE_URL } from "@/lib/site";
 import { SiteHeader } from "@/components/site-header";
 import { Mark } from "@/components/logo";
 import { Separator } from "@/components/ui/separator";
@@ -17,15 +18,34 @@ const display = Fraunces({
   axes: ["SOFT", "WONK"],
 });
 
+const description =
+  "A few plain questions, then project ideas shaped around real interests, real skill level and the time actually available. No account needed, and no idea ever repeats.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "Kindling, find a project worth building",
-  description:
-    "A few plain questions, then project ideas shaped around real interests, real skill level and the time actually available. No account needed, and no idea ever repeats.",
+  description,
   applicationName: "Kindling",
   openGraph: {
-    title: "Kindling",
-    description: "Find a project worth building.",
+    title: "Kindling, find a project worth building",
+    description,
+    siteName: "Kindling",
+    url: SITE_URL,
     type: "website",
+    images: [
+      {
+        url: `${SITE_URL}/og.png`,
+        width: 1200,
+        height: 630,
+        alt: "Kindling. Find a project worth building.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kindling, find a project worth building",
+    description,
+    images: [`${SITE_URL}/og.png`],
   },
 };
 

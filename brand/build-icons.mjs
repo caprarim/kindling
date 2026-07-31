@@ -17,7 +17,6 @@ const targets = [
   ["src/app/apple-icon.png", 180],
   ["public/icon-192.png", 192],
   ["public/icon-512.png", 512],
-  ["public/og.png", 512],
 ];
 
 for (const [rel, size] of targets) {
@@ -26,6 +25,16 @@ for (const [rel, size] of targets) {
   await writeFile(out, await render(size));
   console.log(`wrote ${rel} (${size}px)`);
 }
+
+// The link preview card Discord, Slack, iMessage and X show when the URL is
+// pasted. Landscape at the 1.91:1 those unfurlers crop to, so it fills the
+// frame instead of being letterboxed like a square icon would be.
+const ogSvg = await readFile(join(here, "og.svg"));
+await writeFile(
+  join(root, "public/og.png"),
+  await sharp(ogSvg, { density: 192 }).resize(1200, 630).png().toBuffer(),
+);
+console.log("wrote public/og.png (1200x630)");
 
 // Multi-resolution .ico so Windows/browser tabs pick the sharpest available.
 const icoSizes = [16, 32, 48, 64, 128, 256];
