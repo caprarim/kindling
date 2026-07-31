@@ -19,7 +19,7 @@ const display = Fraunces({
 });
 
 const description =
-  "A few plain questions, then project ideas shaped around real interests, real skill level and the time actually available. No account needed, and no idea ever repeats.";
+  "Answer a few quick questions and get three project ideas built around your skills, your interests and the time you actually have. Free, no account needed, and never the same idea twice.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
