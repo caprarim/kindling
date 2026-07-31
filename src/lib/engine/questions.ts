@@ -99,6 +99,10 @@ export function applyReading(p: Profile, text: string): Profile {
     else if (r.audienceSelf) next.audiences = ["self"];
   }
   if (!next.surfaces.length && r.surfaces.length) next.surfaces = r.surfaces;
+  // The shape and the subject are never asked as questions: they only ever
+  // come out of the description, and they only steer generation.
+  if (r.mechanics.length) next.shapes = r.mechanics;
+  if (r.topic) next.topic = r.topic;
   if (!next.motivations.length && r.motivations.length) next.motivations = r.motivations;
   if (!next.timeBudget && r.timeBudget) next.timeBudget = r.timeBudget as Profile["timeBudget"];
 

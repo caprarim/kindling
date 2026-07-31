@@ -382,6 +382,21 @@ export const DOMAINS: Domain[] = [
         stretch: "Rank past clips by retention and describe what the strong openings had in common.",
       },
       {
+        id: "live",
+        label: "Livestreams & VODs",
+        hint: "Four-hour streams and the eight minutes worth keeping",
+        subject: "hours of live footage and the few moments inside it",
+        problems: [
+          "pull the moments worth posting out of a four-hour stream",
+          "mark a good moment while the stream is still running",
+          "turn one stream into a week of posts without rewatching it",
+        ],
+        names: ["Four Hour Stream", "Mark It Live", "One Stream, One Week"],
+        build:
+          "Take one real stream recording and make marking a range and exporting that range a single keypress. Nothing else ships first.",
+        stretch: "Rank moments by what the chat did at the time, so the good bits surface themselves.",
+      },
+      {
         id: "podcast",
         label: "Podcasts & audio",
         hint: "Recording, trimming, and publishing",
@@ -414,6 +429,7 @@ export const DOMAINS: Domain[] = [
     ],
     audiences: [
       { id: "creators", label: "small creators" },
+      { id: "streamers", label: "streamers and the people who clip them" },
       { id: "hoarders", label: "people with an unsorted library" },
       { id: "podcasters", label: "podcasters" },
       { id: "archivists", label: "the family archivist" },
@@ -421,6 +437,7 @@ export const DOMAINS: Domain[] = [
     keywords: [
       "video", "photo", "audio", "podcast", "edit", "film", "camera",
       "youtube", "clip", "record", "media", "album", "footage", "shorts",
+      "stream", "livestream", "twitch", "vod", "highlight",
     ],
   },
   {
@@ -1191,6 +1208,15 @@ export type Twist = {
   step: string;
   weight: number;
   stack: string[];
+  /**
+   * Areas where this constraint contradicts the subject rather than sharpening
+   * it. A clipping tool that "ends in print" is not a bolder idea, it is a
+   * misread of what was asked for, and one sentence like that discredits the
+   * whole card.
+   */
+  avoid?: string[];
+  /** Areas the constraint genuinely belongs in. Weighted up, never required. */
+  suits?: string[];
 };
 
 export const TWISTS: Twist[] = [
@@ -1202,6 +1228,8 @@ export const TWISTS: Twist[] = [
     step: "Make everything work with the network off, and treat syncing as a later extra.",
     weight: 1,
     stack: ["Local-first storage"],
+    suits: ["outdoors", "food", "health", "home", "dev"],
+    avoid: ["social"],
   },
   {
     id: "sixtysec",
@@ -1211,6 +1239,7 @@ export const TWISTS: Twist[] = [
     step: "Time the core interaction with a stopwatch and cut whatever pushes it past sixty seconds.",
     weight: 0,
     stack: [],
+    suits: ["health", "money", "home", "social"],
   },
   {
     id: "noaccount",
@@ -1220,6 +1249,7 @@ export const TWISTS: Twist[] = [
     step: "Keep state on the device or in the URL, so a link is the only credential that exists.",
     weight: 0,
     stack: ["No backend"],
+    suits: ["social", "games", "dev"],
   },
   {
     id: "onefriend",
@@ -1229,6 +1259,7 @@ export const TWISTS: Twist[] = [
     step: "Design the two-person case first: invite by link, no profiles, no feed, no followers.",
     weight: 1,
     stack: ["A share link"],
+    suits: ["health", "learning", "social", "creative"],
   },
   {
     id: "getsharder",
@@ -1238,6 +1269,8 @@ export const TWISTS: Twist[] = [
     step: "Adapt difficulty from recent results, and cap how fast it is allowed to rise.",
     weight: 1,
     stack: [],
+    suits: ["learning", "health", "games", "creative"],
+    avoid: ["money", "home", "ai", "media", "social"],
   },
   {
     id: "paper",
@@ -1247,6 +1280,8 @@ export const TWISTS: Twist[] = [
     step: "Design the printed page first and let the screen exist to serve it.",
     weight: 1,
     stack: ["Print stylesheet"],
+    suits: ["home", "food", "learning", "creative", "health"],
+    avoid: ["dev", "ai", "media", "games"],
   },
   {
     id: "voice",
@@ -1256,6 +1291,8 @@ export const TWISTS: Twist[] = [
     step: "Get speech to text working against real background noise before designing anything else.",
     weight: 2,
     stack: ["Speech to text"],
+    suits: ["food", "health", "home", "outdoors"],
+    avoid: ["media", "dev", "money", "games"],
   },
   {
     id: "camera",
@@ -1265,6 +1302,8 @@ export const TWISTS: Twist[] = [
     step: "Make a single photo produce a usable result, even a rough one, with no other input.",
     weight: 2,
     stack: ["Camera", "On-device vision"],
+    suits: ["home", "food", "creative", "outdoors", "media"],
+    avoid: ["dev", "ai", "money", "learning", "games", "social", "media:live", "media:podcast"],
   },
   {
     id: "local",
@@ -1274,6 +1313,8 @@ export const TWISTS: Twist[] = [
     step: "Pick one postcode and make it genuinely complete before considering a second.",
     weight: 1,
     stack: ["Map tiles"],
+    suits: ["social", "outdoors", "food"],
+    avoid: ["dev", "ai", "money", "media", "learning", "creative", "health", "home", "games"],
   },
   {
     id: "slow",
@@ -1283,6 +1324,8 @@ export const TWISTS: Twist[] = [
     step: "Hard-limit it to one action a day and make the empty state feel intentional rather than broken.",
     weight: 0,
     stack: [],
+    suits: ["learning", "creative", "health", "social"],
+    avoid: ["media", "dev", "ai", "money"],
   },
   {
     id: "single",
@@ -1301,6 +1344,8 @@ export const TWISTS: Twist[] = [
     step: "Build one season fully, and make the season a parameter rather than a rewrite.",
     weight: 1,
     stack: [],
+    suits: ["food", "outdoors", "home", "social"],
+    avoid: ["dev", "ai", "media", "money", "learning", "games", "creative", "health"],
   },
   {
     id: "twoplayer",
@@ -1310,6 +1355,8 @@ export const TWISTS: Twist[] = [
     step: "Make the second person's first thirty seconds work with no explanation from the first.",
     weight: 2,
     stack: ["Realtime sync"],
+    suits: ["games", "social", "learning", "health"],
+    avoid: ["dev", "ai", "money", "media", "home"],
   },
   {
     id: "retro",
@@ -1319,6 +1366,8 @@ export const TWISTS: Twist[] = [
     step: "Design the year-ago view before the logging view, because it is what makes logging worth doing.",
     weight: 1,
     stack: ["Date-indexed history"],
+    suits: ["health", "social", "creative", "learning", "media"],
+    avoid: ["dev", "ai"],
   },
 ];
 
@@ -1389,6 +1438,7 @@ export const FOCUS_SHAPES: Record<string, string[]> = {
   "creative:visual": ["generator", "challenge", "capture", "library"],
   "creative:craft": ["library", "planner", "simulator", "capture"],
   "media:archive": ["library", "remixer", "capture", "visualiser"],
+  "media:live": ["remixer", "capture", "library", "annotator"],
   "media:shortform": ["remixer", "capture", "library", "visualiser"],
   "media:podcast": ["remixer", "planner", "library", "annotator"],
   "media:familymedia": ["library", "annotator", "capture", "digest"],
@@ -1420,6 +1470,67 @@ export const FOCUS_SHAPES: Record<string, string[]> = {
   "ai:reading": ["digest", "annotator", "remixer", "library"],
   "ai:admin": ["remixer", "planner", "digest", "tracker"],
   "ai:personal": ["library", "capture", "annotator", "digest"],
+};
+
+/**
+ * Who each corner is actually for, keyed by `domain:focus`.
+ *
+ * An area's audiences are not interchangeable across its corners: the family
+ * archivist has no use for a tool that marks moments in a live stream, and an
+ * idea addressed to the wrong one of them reads as randomly assembled however
+ * good the rest of the sentence is. Weighted up rather than enforced, so a
+ * batch can still put an idea in front of someone unexpected.
+ */
+export const FOCUS_AUDIENCES: Record<string, string[]> = {
+  "health:habits": ["desk", "returners", "beginners"],
+  "health:training": ["beginners", "returners", "desk"],
+  "health:sleep": ["desk", "chronic", "returners"],
+  "health:recovery": ["chronic", "returners", "desk"],
+  "money:spending": ["students", "irregular", "housemates"],
+  "money:freelance": ["freelancers", "irregular"],
+  "money:saving": ["students", "irregular", "freelancers"],
+  "money:shared": ["housemates", "students"],
+  "learning:language": ["selfstudy", "students", "switchers"],
+  "learning:exams": ["students", "tutors"],
+  "learning:selftaught": ["selfstudy", "switchers"],
+  "learning:recall": ["selfstudy", "students", "switchers"],
+  "creative:writing": ["blocked", "hobbyists", "pros"],
+  "creative:music": ["hobbyists", "pros", "nervous"],
+  "creative:visual": ["nervous", "hobbyists", "blocked"],
+  "creative:craft": ["hobbyists", "nervous", "pros"],
+  "media:archive": ["hoarders", "archivists"],
+  "media:shortform": ["creators", "streamers"],
+  "media:live": ["streamers", "creators"],
+  "media:podcast": ["podcasters", "creators"],
+  "media:familymedia": ["archivists", "hoarders"],
+  "games:tabletop": ["gms", "groups"],
+  "games:videogames": ["solo", "groups"],
+  "games:gamedev": ["solo", "groups"],
+  "games:party": ["groups", "families"],
+  "social:keepintouch": ["longdistance", "movers"],
+  "social:organising": ["organisers", "movers"],
+  "social:community": ["mods", "organisers"],
+  "social:local": ["movers", "organisers", "mods"],
+  "home:chores": ["sharers", "busy", "carers"],
+  "home:stuff": ["renters", "busy", "sharers"],
+  "home:repair": ["renters", "busy", "carers"],
+  "home:plants": ["busy", "carers", "sharers"],
+  "food:weeknight": ["tired", "budget"],
+  "food:planning": ["budget", "allergy", "tired"],
+  "food:waste": ["budget", "tired"],
+  "food:hosting": ["hosts", "allergy"],
+  "outdoors:trips": ["weekenders", "soloTravel", "familyTrip"],
+  "outdoors:nearby": ["weekenders", "familyTrip", "commuters"],
+  "outdoors:walking": ["commuters", "weekenders", "soloTravel"],
+  "outdoors:nature": ["familyTrip", "weekenders"],
+  "dev:onboarding": ["juniors", "smallteams"],
+  "dev:debugging": ["juniors", "smallteams", "soloDevs"],
+  "dev:shipping": ["soloDevs", "oss"],
+  "dev:workflow": ["soloDevs", "smallteams", "oss"],
+  "ai:inbox": ["overwhelmed", "smallbiz"],
+  "ai:reading": ["researchers", "overwhelmed"],
+  "ai:admin": ["smallbiz", "overwhelmed"],
+  "ai:personal": ["sceptical", "researchers"],
 };
 
 export const DOMAIN_BY_ID = new Map(DOMAINS.map((d) => [d.id, d]));

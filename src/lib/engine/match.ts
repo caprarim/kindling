@@ -4,11 +4,14 @@ import {
   DOMAIN_TERMS,
   FILLER,
   FOCUS_TERMS,
+  MECHANIC_TERMS,
   MOTIVATION_TERMS,
+  OTHERS_TERMS,
   PEOPLE_WORDS,
   SELF_TERMS,
   SURFACE_TERMS,
   TIME_TERMS,
+  WEAK_SELF_TERMS,
 } from "./vocabulary";
 
 export type Confidence = "strong" | "weak" | "none";
@@ -18,9 +21,13 @@ export type Reading = {
   focuses: string[];
   surfaces: string[];
   motivations: string[];
+  /** Shapes the sentence described, strongest first. */
+  mechanics: string[];
   timeBudget?: string;
   /** Who it is for, in the words they used. Empty when they never said. */
   audience?: string;
+  /** What it is about, in the words they used. Empty when nothing landed. */
+  topic?: string;
   audienceSelf: boolean;
   matched: string[];
   leftovers: string[];
@@ -34,6 +41,7 @@ const EMPTY: Reading = {
   focuses: [],
   surfaces: [],
   motivations: [],
+  mechanics: [],
   audienceSelf: false,
   matched: [],
   leftovers: [],
@@ -269,6 +277,56 @@ function detectAudience(raw: string[], stems: string[]): string | undefined {
   return undefined;
 }
 
+/**
+ * Words that describe doing something rather than the something itself.
+ *
+ * "Clip livestreams" is a verb and its object, and only the object is worth
+ * repeating back. Trimming these off the front is what turns the phrase into
+ * something that can be dropped into a sentence.
+ */
+const DOING_WORDS = new Set(
+  [
+    "clip", "edit", "make", "build", "track", "log", "find", "sort", "share",
+    "post", "manage", "organise", "organize", "plan", "record", "save", "help",
+    "create", "generate", "convert", "trim", "cut", "upload", "watch", "read",
+    "write", "learn", "teach", "cook", "clean", "book", "capture", "collect",
+    "search", "browse", "publish", "export", "import", "handle", "review",
+  ].map(stem),
+);
+
+/**
+ * What the description is about, kept in the words they typed.
+ *
+ * The longest unbroken run of words that actually matched something is the
+ * subject: everything around it is filler or the people it is for. Verbs come
+ * off the front, so "a tool to clip livestreams" gives back "livestreams" and
+ * an idea can be written about livestreams rather than about media in general.
+ */
+function detectTopic(raw: string[], stems: string[], matched: Set<string>, skip: Set<number>): string | undefined {
+  const runs: string[][] = [];
+  let run: string[] = [];
+  for (let i = 0; i <= raw.length; i++) {
+    if (i === raw.length || skip.has(i) || !matched.has(stems[i])) {
+      if (run.length) runs.push(run);
+      run = [];
+      continue;
+    }
+    run.push(raw[i]);
+  }
+  if (!runs.length) return undefined;
+
+  // The longest run wins, and the last of equal length: "clip livestreams" is
+  // said after "clipping tool", and the thing said last is the subject.
+  let best = runs[0];
+  for (const r of runs) if (r.length >= best.length) best = r;
+
+  let out = best.slice(-3);
+  while (out.length && DOING_WORDS.has(stem(out[0]))) out = out.slice(1);
+  if (!out.length) return undefined;
+  if (out.length === 1 && DOING_WORDS.has(stem(out[0]))) return undefined;
+  return out.join(" ");
+}
+
 const FOCUS_FLOOR = 1.6;
 const DOMAIN_FLOOR = 1.6;
 const STRONG = 3.4;
@@ -365,14 +423,23 @@ export function read(text: string): Reading {
   const everything = grams(stems);
   const timeBudget = flatMatch(TIME_TERMS, everything)[0];
 
+  // "I want to build" is how everyone opens a sentence about a project, so it
+  // only means "for me" when nobody else appears anywhere in it.
+  const audience = detectAudience(raw, stems);
+  const hit = (list: string[]) => terms(list, 1, true).some((t) => everything.has(t.key));
+  const audienceSelf =
+    hit(SELF_TERMS) || (hit(WEAK_SELF_TERMS) && !audience && !hit(OTHERS_TERMS));
+
   return {
     domains: fromFocuses.length ? fromFocuses : domains,
     focuses,
     surfaces: flatMatch(SURFACE_TERMS, everything).slice(0, 2),
     motivations: flatMatch(MOTIVATION_TERMS, everything).slice(0, 2),
+    mechanics: flatMatch(MECHANIC_TERMS, everything).slice(0, 2),
     timeBudget,
-    audience: detectAudience(raw, stems),
-    audienceSelf: terms(SELF_TERMS, 1).some((t) => everything.has(t.key)),
+    audience,
+    topic: detectTopic(raw, stems, matchedStems, people),
+    audienceSelf,
     matched,
     leftovers,
     confidence,

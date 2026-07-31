@@ -1,6 +1,7 @@
 import { effectiveDomains } from "./questions";
 import {
   DOMAIN_BY_ID,
+  FOCUS_AUDIENCES,
   FOCUS_SHAPES,
   MECHANICS,
   MECHANIC_BY_ID,
@@ -106,6 +107,25 @@ function twistPool(p: Profile) {
   });
 }
 
+/**
+ * The constraints that make sense in this area, weighted toward the ones that
+ * belong in it.
+ *
+ * A constraint is meant to sharpen an idea. "It ends in print" bolted onto a
+ * tool for cutting up livestreams does the opposite: it reads as a sentence
+ * written about some other project, and one of those is enough to make the
+ * whole card look assembled at random. Contradictions are dropped outright
+ * here rather than made unlikely, because unlikely still happens.
+ */
+function twistsFor(domain: string, focus: string, base: { t: (typeof TWISTS)[number]; w: number }[]) {
+  const keys = [domain, `${domain}:${focus}`];
+  const hits = (list?: string[]) => !!list?.some((k) => keys.includes(k));
+  const fits = base.filter(({ t }) => !hits(t.avoid));
+  // Never narrow so far that a batch cannot find three different constraints.
+  const pool = fits.length >= 5 ? fits : base;
+  return pool.map(({ t, w }) => ({ t, w: w * (hits(t.suits) ? 2.2 : 1) }));
+}
+
 /** `domain:focus` pairs the person is in the market for. */
 function focusPool(p: Profile, seen?: Set<string>): { domain: string; focus: string }[] {
   const chosen = p.focuses.length
@@ -145,12 +165,19 @@ function focusPool(p: Profile, seen?: Set<string>): { domain: string; focus: str
   );
 }
 
-function audiencePool(p: Profile, domain: string): string[] {
+function audiencePool(p: Profile, domain: string, focus?: string): string[] {
   const chosen = p.audiences.filter(
     (a) => a === "self" || a.startsWith("text:") || a.startsWith(`${domain}:`),
   );
   if (chosen.length) return chosen;
   if (p.audiences.includes("self")) return ["self"];
+
+  // Nobody said, so the corner decides. An area's four audiences are not
+  // interchangeable across its corners, and offering a livestream tool to the
+  // family archivist is the misfire people actually notice.
+  const fitting = focus ? (FOCUS_AUDIENCES[`${domain}:${focus}`] ?? []) : [];
+  if (fitting.length) return fitting.map((a) => `${domain}:${a}`);
+
   const d = DOMAIN_BY_ID.get(domain);
   return (d?.audiences ?? []).map((a) => `${domain}:${a.id}`);
 }
@@ -173,6 +200,45 @@ function audienceLabel(id: string): string {
 function thingNoun(p: Profile, mechanicSurfaces: string[]): string {
   const id = p.surfaces[0] ?? mechanicSurfaces[0];
   return SURFACES.find((s) => s.id === id)?.label ?? "An app";
+}
+
+/**
+ * The subject in their own words, when saying it back adds something.
+ *
+ * Someone who typed "a tool to clip livestreams" should see livestreams in the
+ * idea, not "video". Three things disqualify it. The problem sentence already
+ * saying it, because naming the same thing twice in one line reads worse than
+ * never naming it. Being the audience as well, because "for dungeon masters
+ * working with dungeon masters" is nonsense. And needing an article to be
+ * grammatical: "built around livestreams" and "built around wasting food" both
+ * work, "built around codebase" does not, so only plurals and -ing phrases,
+ * which never take one, are kept.
+ */
+function usableTopic(p: Profile, draft: Draft, problem: string, who: string): string | undefined {
+  const topic = p.topic?.trim().toLowerCase();
+  if (!topic || topic.length > 28) return undefined;
+
+  // Later batches move into neighbouring corners once the described one is
+  // spent. Those ideas are not about the thing that was typed, so they do not
+  // get to claim they are.
+  const corner = `${draft.domain}:${draft.focus}`;
+  if (p.focuses.length && !p.focuses.includes(corner)) return undefined;
+
+  const last = topic.split(" ").at(-1) ?? "";
+  const articleFree =
+    last.endsWith("ing") ||
+    (last.endsWith("s") && !/(ss|us|is)$/.test(last) && last.length > 3);
+  if (!articleFree) return undefined;
+
+  if (who.toLowerCase().includes(topic) || topic.includes(who.toLowerCase())) return undefined;
+
+  // Loose enough to catch "clips" against "clipping", tight enough not to fire
+  // on every short word the two happen to share.
+  const haystack = problem.toLowerCase();
+  const parts = topic.split(" ").filter((w) => w.length > 3);
+  if (parts.some((w) => haystack.includes(w.slice(0, Math.max(4, w.length - 2))))) return undefined;
+
+  return topic;
 }
 
 /* ── generation ──────────────────────────────────────────────────────────── */
@@ -213,6 +279,10 @@ export function generateIdeas(
   const focuses = focusPool(p, seen);
   const mechanics = mechanicPool(p);
   const twists = twistPool(p);
+  const byCorner = new Map<string, ReturnType<typeof twistsFor>>();
+  // The shape someone described in their own words. It is a strong steer and
+  // not a rule: three cards of the same shape would be one card three times.
+  const described = new Set(p.shapes ?? []);
 
   const r = rng(hash(JSON.stringify(p) + salt + seen.size));
 
@@ -230,7 +300,7 @@ export function generateIdeas(
 
   const enoughFocuses = focuses.length >= count;
   const enoughAudiences =
-    new Set(focuses.flatMap(({ domain }) => audiencePool(p, domain))).size >= count;
+    new Set(focuses.flatMap(({ domain, focus }) => audiencePool(p, domain, focus))).size >= count;
 
   // A heading that has already been shown is worth avoiding for as long as an
   // unused one exists, because the same three names coming back is what makes
@@ -262,12 +332,21 @@ export function generateIdeas(
       if (!focusDef) continue;
 
       const problem = Math.floor(r() * focusDef.problems.length) % focusDef.problems.length;
-      const audience = pick(audiencePool(p, domain), r);
+      // Audiences belong to corners, not to areas: a livestream tool addressed
+      // to the family archivist is the same misfire as the wrong shape.
+      const audience = pick(audiencePool(p, domain, focus), r);
       // Shapes that suit this corner are far likelier, so an idea reads as
       // something designed for the problem rather than bolted onto it.
       const suited = FOCUS_SHAPES[`${domain}:${focus}`] ?? [];
-      const mechanic = weighted(mechanics, (x) => x.w * (suited.includes(x.m.id) ? 3.5 : 1), r).m;
-      const twist = weighted(twists, (x) => x.w, r).t;
+      const mechanic = weighted(
+        mechanics,
+        (x) => x.w * (suited.includes(x.m.id) ? 6 : 1) * (described.has(x.m.id) ? 5 : 1),
+        r,
+      ).m;
+
+      const corner = `${domain}:${focus}`;
+      if (!byCorner.has(corner)) byCorner.set(corner, twistsFor(domain, focus, twists));
+      const twist = weighted(byCorner.get(corner)!, (x) => x.w, r).t;
 
       const fingerprint = `${domain}.${focus}.${audience}.${mechanic.id}.${twist.id}.p${problem}`;
       const problemKey = `${domain}.${focus}.p${problem}`;
@@ -331,10 +410,25 @@ function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
     `${thing} to ${problem}.`,
   ];
 
+  // Their own words go in every other card. On all three it turns into a
+  // formula, and a batch that never says them has not listened.
+  const topic = usableTopic(p, draft, problem, who);
+  const topicOpenings = topic
+    ? [
+        `${thing} built around ${topic} that helps ${who} ${problem}.`,
+        `${thing} for ${topic} that helps ${who} ${problem}.`,
+        `Made for ${topic}: ${lower} that helps ${who} ${problem}.`,
+      ]
+    : [];
+
+  const line = topicOpenings.length && index % 2 === 0
+    ? topicOpenings[Math.floor(index / 2) % topicOpenings.length]
+    : openings[index % openings.length];
+
   return {
     id: draft.fingerprint,
     title: draft.title,
-    pitch: `${openings[index % openings.length]} ${mechanic.plain} ${twist.sentence}`,
+    pitch: `${line} ${mechanic.plain} ${twist.sentence}`,
     slots: {
       domain: draft.domain,
       focus: draft.focus,
@@ -353,7 +447,7 @@ export function poolSize(p: Profile): number {
     const def = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
     return n + (def?.problems.length ?? 0);
   }, 0);
-  const audiences = new Set(pairs.flatMap((f) => audiencePool(p, f.domain))).size || 1;
+  const audiences = new Set(pairs.flatMap((f) => audiencePool(p, f.domain, f.focus))).size || 1;
   return problems * audiences * MECHANICS.length * TWISTS.length;
 }
 
@@ -368,7 +462,7 @@ export function poolSize(p: Profile): number {
 export function countSeenInPool(p: Profile, seen: Iterable<string>): number {
   const pairs = focusPool(p);
   const focuses = new Set(pairs.map((f) => `${f.domain}.${f.focus}`));
-  const audiences = new Set(pairs.flatMap((f) => audiencePool(p, f.domain)));
+  const audiences = new Set(pairs.flatMap((f) => audiencePool(p, f.domain, f.focus)));
 
   let n = 0;
   for (const id of seen) {

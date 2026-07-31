@@ -162,6 +162,15 @@ export const FOCUS_TERMS: Record<string, string[]> = {
     "google photos", "organise photos", "organize photos", "tagging", "metadata",
     "hard drive", "archive", "thousands of photos", "camera roll", "photographers",
   ],
+  "media:live": [
+    "livestream", "livestreams", "live stream", "streaming", "stream",
+    "streamer", "streamers", "twitch", "kick", "vod", "vods", "broadcast",
+    "clip", "clips", "clipping", "clipper", "clip tool", "clipping tool",
+    "highlight", "highlights", "highlight reel", "stream highlights",
+    "four hour stream", "long stream", "chat replay", "timestamp",
+    "timestamps", "mark a moment", "best moments", "twitch clips",
+    "stream vod", "go live", "on stream", "obs", "capture card",
+  ],
   "media:shortform": [
     "short form", "tiktok", "reels", "shorts", "clip", "clipping", "hook",
     "posting schedule", "viral", "captions", "vertical video", "editing clips",
@@ -313,6 +322,84 @@ export const FOCUS_TERMS: Record<string, string[]> = {
   ],
 };
 
+/**
+ * The shape of the thing, said out loud.
+ *
+ * Someone who says "a clipping tool" has described a transformer as plainly as
+ * they described the subject, and generating a quiet tracker instead is the
+ * part that reads as not having listened. These are weighted up in generation,
+ * never enforced, so the batch can still hold a shape they did not think of.
+ */
+export const MECHANIC_TERMS: Record<string, string[]> = {
+  remixer: [
+    "clip", "clipping", "clipper", "trim", "trimming", "cut down", "convert",
+    "converter", "edit", "editor", "editing", "compress", "resize", "reformat",
+    "turn into", "export", "render", "transcribe", "translate", "rewrite",
+    "crop", "splice", "chop up", "repurpose", "into shorts",
+  ],
+  capture: [
+    "capture", "quick capture", "one tap", "one keypress", "hotkey", "shortcut",
+    "bookmark", "save it", "jot", "quick note", "screenshot", "mark", "marker",
+    "flag it", "in the moment", "before i forget",
+  ],
+  tracker: [
+    "track", "tracker", "tracking", "log", "logging", "keep a record",
+    "streak", "count", "counter", "monitor", "history of", "diary",
+  ],
+  library: [
+    "library", "catalogue", "catalog", "archive", "searchable", "organise",
+    "organize", "collection", "index", "tagging", "sort my", "find things again",
+  ],
+  planner: [
+    "planner", "plan", "planning", "schedule", "scheduler", "calendar", "rota",
+    "timetable", "itinerary", "roadmap", "lay out the week",
+  ],
+  visualiser: [
+    "chart", "charts", "graph", "graphs", "dashboard", "visualise", "visualize",
+    "heatmap", "see the pattern", "at a glance",
+  ],
+  digest: [
+    "digest", "summary", "summarise", "summarize", "newsletter", "weekly email",
+    "roundup", "recap", "briefing", "one email",
+  ],
+  matcher: [
+    "match", "matcher", "matching", "recommend", "recommendation", "recommends",
+    "suggest", "picks one", "find the right", "what to watch", "what to play",
+  ],
+  generator: [
+    "generator", "generate", "generates", "random", "randomiser", "randomizer",
+    "prompt generator", "gives me an idea", "one suggestion",
+  ],
+  nudger: [
+    "reminder", "reminders", "remind", "notification", "notifications", "nudge",
+    "alert", "ping me", "tells me when",
+  ],
+  directory: [
+    "directory", "listing", "list of", "map of", "database of", "index of",
+    "one big list", "where to find",
+  ],
+  simulator: [
+    "calculator", "simulate", "simulator", "what if", "forecast", "projection",
+    "model it", "run the numbers", "scenario",
+  ],
+  challenge: [
+    "challenge", "quiz", "leaderboard", "score", "scoring", "levels", "streaks",
+    "gamify", "gamified", "compete",
+  ],
+  annotator: [
+    "annotate", "annotation", "annotations", "highlight text", "comment on",
+    "notes on top", "markup", "mark up",
+  ],
+  companion: [
+    "companion", "while i", "hands free", "alongside", "second screen",
+    "during the session", "overlay",
+  ],
+  exchange: [
+    "marketplace", "exchange", "buyers", "sellers", "swap", "trade",
+    "connect people", "two sides", "listings and offers",
+  ],
+};
+
 export const SURFACE_TERMS: Record<string, string[]> = {
   web: ["website", "web app", "web page", "browser", "in a browser", "landing page", "extension", "chrome extension", "saas"],
   mobile: ["phone app", "mobile app", "ios", "android", "iphone", "on my phone", "pocket", "app store"],
@@ -361,7 +448,23 @@ export const AUDIENCE_LEADS = ["for", "aimed at", "helps", "so that", "used by",
 
 export const SELF_TERMS = [
   "for me", "for myself", "just me", "my own", "nobody else", "only i",
-  "personal use", "i need", "i want", "my life",
+  "personal use", "my life",
+];
+
+/**
+ * Phrases that mean "for me" only when nobody else is mentioned.
+ *
+ * "I want to build a clipping tool for people" is not a tool for one person,
+ * it is the ordinary way anyone describes a project. Reading it as personal
+ * silently answers who it is for, and answers it wrong.
+ */
+export const WEAK_SELF_TERMS = ["i need", "i want", "i would like", "i am building"];
+
+/** Words that say other people are involved, whoever they turn out to be. */
+export const OTHERS_TERMS = [
+  "people", "others", "anyone", "everyone", "somebody", "someone else",
+  "users", "customers", "my friends", "my team", "my family", "my mum",
+  "my dad", "my clients", "my colleagues", "the community",
 ];
 
 export const FILLER = [

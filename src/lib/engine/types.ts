@@ -28,6 +28,10 @@ export type Profile = {
   timeBudget?: TimeBudget;
   motivations: string[];
   surfaces: string[];
+  /** Shapes the description named, e.g. "a clipping tool" means a transformer. */
+  shapes: string[];
+  /** What the description was about, in their own words. */
+  topic?: string;
   appetite?: Appetite;
   /** Ids of questions the person explicitly skipped, so we never re-ask. */
   skipped: string[];
@@ -42,6 +46,7 @@ export const emptyProfile = (): Profile => ({
   skills: [],
   motivations: [],
   surfaces: [],
+  shapes: [],
   skipped: [],
 });
 
