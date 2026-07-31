@@ -13,9 +13,46 @@ import { useKindling } from "@/lib/store";
 import { summarise } from "@/lib/engine/summary";
 import type { Question } from "@/lib/engine/types";
 
+/**
+ * Pushes one browser history entry per answered question, so the browser's
+ * own Back button steps through the MCQ flow instead of leaving the page.
+ * The in-app Back button goes through window.history.back() too, so both
+ * paths funnel through the same popstate handler and never fall out of sync.
+ */
+function useBrowserBack(depth: number, back: () => void, canGoBack: boolean) {
+  const depthRef = useRef(depth);
+  const backRef = useRef(back);
+
+  useEffect(() => {
+    backRef.current = back;
+  }, [back]);
+
+  useEffect(() => {
+    if (depth > depthRef.current) {
+      window.history.pushState({ kindlingDepth: depth }, "");
+    }
+    depthRef.current = depth;
+  }, [depth]);
+
+  useEffect(() => {
+    function onPopState(e: PopStateEvent) {
+      const target = (e.state as { kindlingDepth?: number } | null)?.kindlingDepth ?? 0;
+      if (target < depthRef.current) backRef.current();
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, []);
+
+  return useCallback(() => {
+    if (canGoBack) window.history.back();
+  }, [canGoBack]);
+}
+
 export function Flow() {
   const router = useRouter();
-  const { ready, question, profile, answer, skip, back, canGoBack, generate } = useKindling();
+  const { ready, question, profile, answer, skip, back, canGoBack, depth, generate } = useKindling();
+
+  const goBack = useBrowserBack(depth, back, canGoBack);
 
   const [selection, setSelection] = useState<string[]>([]);
   const [text, setText] = useState("");
@@ -23,6 +60,9 @@ export function Flow() {
   const lastQuestion = useRef<string | null>(null);
   const finishing = useRef(false);
   const answeredHere = useRef(false);
+  // Back rewinds to the profile as it was before the description was typed, so
+  // without this the words come back as an empty box.
+  const lastText = useRef("");
 
   // Reset the working answer whenever the engine moves us to a new question.
   // Anything the description already answered arrives ticked.
@@ -30,7 +70,7 @@ export function Flow() {
     if (lastQuestion.current === questionId) return;
     lastQuestion.current = questionId;
     setSelection(question?.preselect ?? []);
-    setText(questionId === "ideaText" ? (profile.ideaText ?? "") : "");
+    setText(questionId === "ideaText" ? (profile.ideaText ?? lastText.current) : "");
   }, [questionId, profile.ideaText, question]);
 
   useEffect(() => {
@@ -57,10 +97,18 @@ export function Flow() {
 
   const picked = useMemo(() => {
     if (!question || question.kind === "text") return null;
+    const min = question.min ?? 1;
+    const max = question.max ?? 1;
+    const prefilled = (question.preselect?.length ?? 0) > 0;
     return {
-      min: question.min ?? 1,
+      min,
+      max,
       count: selection.length,
-      prefilled: (question.preselect?.length ?? 0) > 0,
+      prefilled,
+      // A question that allows a range of answers has to wait to be confirmed.
+      // Moving on at the minimum made every "pick up to three" a pick-one, so
+      // the second and third options could never be reached at all.
+      confirms: prefilled || (question.kind === "multi" && min !== max),
     };
   }, [question, selection]);
 
@@ -76,13 +124,14 @@ export function Flow() {
 
   const q = question;
 
-  /** A pick is the answer. It moves on the moment enough has been picked. */
+  /**
+   * A pick is the answer, but only where a single pick can be the whole answer.
+   * Anything that invites more than one waits for the button below.
+   */
   function choose(ids: string[]) {
     setSelection(ids);
 
-    // A prefilled question waits: the ticks are a suggestion to correct, and
-    // committing on the first tap would throw the rest of them away.
-    if (q.preselect?.length) return;
+    if (picked?.confirms) return;
 
     if (q.kind === "single") {
       if (ids.length) commit(q, ids);
@@ -106,7 +155,7 @@ export function Flow() {
       <div className="flex flex-col gap-2.5">
         <Progress value={Math.round(q.progress * 100)} className="h-1.5" />
         <p className="text-[0.7rem] tracking-wide text-muted-foreground uppercase sm:text-xs">
-          {Math.round(q.progress * 100)}% · shaped by every answer so far
+          {Math.round(q.progress * 100)}% · {canGoBack ? "shaped by every answer so far" : "no wrong answers"}
         </p>
       </div>
 
@@ -129,7 +178,10 @@ export function Flow() {
                 rows={4}
                 value={text}
                 placeholder={q.placeholder}
-                onChange={(e) => setText(e.target.value)}
+                onChange={(e) => {
+                  setText(e.target.value);
+                  lastText.current = e.target.value;
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
@@ -148,7 +200,7 @@ export function Flow() {
                 size="lg"
                 onClick={submitText}
                 disabled={!textReady}
-                className="h-12 w-full gap-2 rounded-full px-6 text-[0.95rem] font-medium sm:w-auto sm:self-start"
+                className="w-full sm:w-auto sm:self-start"
               >
                 Carry on
                 <ArrowRightIcon className="size-4" />
@@ -172,7 +224,13 @@ export function Flow() {
             className="flex min-h-5 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground"
           >
             {picked.prefilled ? (
-              <span>Change anything that does not fit, then carry on.</span>
+              <span>{q.note ?? "Change anything that does not fit, then carry on."}</span>
+            ) : picked.confirms ? (
+              <>
+                <span className="tabular-nums">{picked.count} picked</span>
+                <span aria-hidden>·</span>
+                <span>up to {picked.max}, then carry on</span>
+              </>
             ) : picked.min > 1 ? (
               <>
                 <span className="tabular-nums">
@@ -187,12 +245,12 @@ export function Flow() {
           </div>
         ) : null}
 
-        {picked?.prefilled ? (
+        {picked?.confirms ? (
           <Button
             size="lg"
             onClick={() => commit(q, selection)}
             disabled={selection.length < picked.min}
-            className="h-12 w-full gap-2 rounded-full px-6 text-[0.95rem] font-medium sm:w-auto sm:self-start"
+            className="w-full sm:w-auto sm:self-start"
           >
             Carry on
             <ArrowRightIcon className="size-4" />
@@ -205,8 +263,9 @@ export function Flow() {
           {canGoBack ? (
             <Button
               variant="outline"
-              onClick={back}
-              className="group/back h-12 w-full justify-center gap-2.5 rounded-full py-0 pr-6 pl-3 text-[0.95rem] font-medium hover:border-primary/40 active:scale-[0.98] sm:w-auto"
+              size="lg"
+              onClick={goBack}
+              className="group/back w-full justify-center gap-2.5 py-0 pr-6 pl-3 hover:border-primary/40 active:scale-[0.98] sm:w-auto"
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-foreground transition-colors group-hover/back:bg-primary/15 group-hover/back:text-primary">
                 <ArrowLeftIcon className="size-4 transition-transform group-hover/back:-translate-x-0.5" />
@@ -279,7 +338,7 @@ function Review() {
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
         <Button
           size="lg"
-          className="h-12 w-full gap-2 rounded-full px-7 text-[0.95rem] font-medium sm:w-auto"
+          className="w-full sm:w-auto"
           onClick={() => {
             generate();
             router.push("/ideas");
@@ -291,7 +350,7 @@ function Review() {
         <Button
           variant="outline"
           size="lg"
-          className="h-12 w-full gap-2 rounded-full px-7 text-[0.95rem] font-medium sm:w-auto"
+          className="w-full sm:w-auto"
           onClick={() => {
             restart();
             router.push("/");

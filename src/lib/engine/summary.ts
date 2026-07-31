@@ -15,7 +15,7 @@ export type AnswerSummary = {
 
 const PATH_LABELS: Record<string, string> = {
   "has-idea": "I know what I want to build",
-  "rough-direction": "I know roughly where to go",
+  "rough-direction": "I know roughly where to look",
   "no-idea": "I have absolutely no idea",
 };
 
@@ -63,7 +63,7 @@ export function summarise(p: Profile): AnswerSummary[] {
   add("ideaText", ["ideaText"], "The idea", [p.ideaText]);
   add(
     "domains",
-    ["domains", "interests"],
+    ["domains", "areas", "interests"],
     "Areas",
     p.domains.map((d) => DOMAIN_BY_ID.get(d)?.label),
   );

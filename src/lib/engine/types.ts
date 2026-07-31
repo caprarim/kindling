@@ -64,6 +64,8 @@ export type Question = {
   placeholder?: string;
   /** Choice ids ticked before anyone touches it, read out of the description. */
   preselect?: string[];
+  /** Why those ticks are there. Replaces the default line under a prefilled question. */
+  note?: string;
   /** Shown as a quiet "none of these" escape hatch. */
   escape?: { label: string };
   /** Roughly how far through the flow this question sits, 0–1. */

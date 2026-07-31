@@ -68,7 +68,7 @@ export default function Home() {
             </div>
             <Button
               size="lg"
-              className="h-12 w-full gap-2 rounded-full px-6 text-[0.95rem] font-medium sm:w-auto"
+              className="w-full sm:w-auto"
               render={<Link href="/start" />}
             >
               Carry on

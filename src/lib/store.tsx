@@ -63,6 +63,8 @@ type Ctx = {
   exhausted: boolean;
   generating: boolean;
   canGoBack: boolean;
+  /** How many steps Back can rewind in this run. */
+  depth: number;
   /** Present when signed in. This is the bearer token, not any of the data. */
   token: string | null;
   syncing: boolean;
@@ -92,8 +94,17 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const history = useRef<Profile[]>([]);
+  // Session-only, and deliberately not persisted: Back walks this run, not
+  // whatever was answered on this device a fortnight ago.
+  const [history, setHistory] = useState<Profile[]>([]);
   const mergedFor = useRef<string | null>(null);
+  // Read by the handlers below without making every one of them re-created on
+  // each keystroke. Mutating it inside a state updater would double-push under
+  // React's development double-invoke, which is what used to eat a Back press.
+  const profileRef = useRef<Profile>(state.profile);
+  useEffect(() => {
+    profileRef.current = state.profile;
+  }, [state.profile]);
 
   useEffect(() => {
     setState(load());
@@ -182,8 +193,8 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
   const question = useMemo(() => (ready ? nextQuestion(state.profile) : null), [state.profile, ready]);
 
   const applyToProfile = useCallback((q: Question, value: string | string[]) => {
+    setHistory((h) => [...h, profileRef.current]);
     setState((s) => {
-      history.current = [...history.current, s.profile];
       // The description answers several questions at once, so it writes all of
       // them and the engine never asks again.
       const profile: Profile =
@@ -202,21 +213,22 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
   );
 
   const skip = useCallback((q: Question) => {
-    setState((s) => {
-      history.current = [...history.current, s.profile];
-      return { ...s, profile: { ...s.profile, skipped: [...s.profile.skipped, q.id] } };
-    });
+    setHistory((h) => [...h, profileRef.current]);
+    setState((s) => ({
+      ...s,
+      profile: { ...s.profile, skipped: [...new Set([...s.profile.skipped, q.id])] },
+    }));
   }, []);
 
   const back = useCallback(() => {
-    const prev = history.current.at(-1);
+    const prev = history.at(-1);
     if (!prev) return;
-    history.current = history.current.slice(0, -1);
+    setHistory(history.slice(0, -1));
     setState((s) => ({ ...s, profile: prev }));
-  }, []);
+  }, [history]);
 
   const restart = useCallback(() => {
-    history.current = [];
+    setHistory([]);
     setExhausted(false);
     // Seen ideas and the saved library deliberately survive a restart: that is
     // the whole point of never showing the same idea twice.
@@ -252,17 +264,15 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
 
   /** Clear one answer so the engine asks that question again. */
   const reopen = useCallback((field: keyof Profile, questionIds: string[]) => {
-    setState((s) => {
-      history.current = [...history.current, s.profile];
-      return {
-        ...s,
-        profile: {
-          ...s.profile,
-          [field]: blankValue(field),
-          skipped: s.profile.skipped.filter((id) => !questionIds.includes(id)),
-        } as Profile,
-      };
-    });
+    setHistory((h) => [...h, profileRef.current]);
+    setState((s) => ({
+      ...s,
+      profile: {
+        ...s.profile,
+        [field]: blankValue(field),
+        skipped: s.profile.skipped.filter((id) => !questionIds.includes(id)),
+      } as Profile,
+    }));
   }, []);
 
   const isSaved = useCallback((id: string) => state.saved.some((i) => i.id === id), [state.saved]);
@@ -309,7 +319,8 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
     seenCount: state.seen.length,
     exhausted,
     generating,
-    canGoBack: history.current.length > 0,
+    canGoBack: history.length > 0,
+    depth: history.length,
     token,
     syncing,
     syncError,

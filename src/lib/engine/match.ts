@@ -205,7 +205,7 @@ const PEOPLE = new Set(PEOPLE_WORDS.filter((w) => !w.includes(" ")).map(stem));
 const PEOPLE_PAIRS = new Set(
   PEOPLE_WORDS.filter((w) => w.includes(" ")).map((w) => words(w).map(stem).join(" ")),
 );
-const LEAD_WORDS = new Set(AUDIENCE_LEADS.map((w) => words(w)[0]));
+const LEAD_WORDS = new Set(AUDIENCE_LEADS.map((w) => stem(words(w)[0])));
 const PEOPLE_ENDINGS = /(ers|ists|ians|ors)$/;
 
 function peopleWord(word: string, stemmed: string): boolean {
@@ -236,7 +236,7 @@ function peopleWord(word: string, stemmed: string): boolean {
 function peoplePositions(raw: string[], stems: string[]): Set<number> {
   const out = new Set<number>();
   for (let i = 0; i < raw.length - 1; i++) {
-    if (!LEAD_WORDS.has(raw[i])) continue;
+    if (!LEAD_WORDS.has(stems[i])) continue;
     for (let j = i + 1; j < Math.min(i + 4, raw.length); j++) {
       if (j + 1 < raw.length && PEOPLE_PAIRS.has(`${stems[j]} ${stems[j + 1]}`)) {
         out.add(j);
@@ -258,7 +258,7 @@ function detectAudience(raw: string[], stems: string[]): string | undefined {
     if (PEOPLE_PAIRS.has(pair)) return `${raw[i]} ${raw[i + 1]}`;
   }
   for (let i = 0; i < raw.length - 1; i++) {
-    if (!LEAD_WORDS.has(raw[i])) continue;
+    if (!LEAD_WORDS.has(stems[i])) continue;
     for (let j = i + 1; j < Math.min(i + 4, raw.length); j++) {
       if (peopleWord(raw[j], stems[j])) return raw[j];
     }

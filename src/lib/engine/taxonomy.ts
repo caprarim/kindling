@@ -1332,27 +1332,27 @@ export const SURFACES: { id: string; label: string; hint: string; stack: string[
 ];
 
 export const MOTIVATIONS: { id: string; label: string; hint: string }[] = [
-  { id: "scratch", label: "Fix my own annoyance", hint: "Built for exactly one user, me" },
+  { id: "scratch", label: "Fix my own annoyance", hint: "A real weekly irritation, not a hypothetical" },
   { id: "learn", label: "Learn something new", hint: "The project is an excuse to grow" },
   { id: "portfolio", label: "Have something to show", hint: "Interviews, clients, proof it was built" },
   { id: "income", label: "Maybe earn from it", hint: "Small and real, not a unicorn" },
-  { id: "people", label: "Help someone specific", hint: "A real person already needs this" },
+  { id: "people", label: "Help someone specific", hint: "Somebody else already needs this" },
   { id: "fun", label: "Just for the fun of it", hint: "No further justification needed" },
 ];
 
-export const FRUSTRATIONS: { id: string; label: string; domains: string[] }[] = [
-  { id: "forget", label: "I forget things I meant to do", domains: ["home", "social", "learning"] },
-  { id: "toomanytabs", label: "I drown in tabs, notes and saved links", domains: ["learning", "ai", "media"] },
-  { id: "moneyleak", label: "Money disappears and I don't know where", domains: ["money"] },
-  { id: "dinner", label: "Deciding what to eat is exhausting", domains: ["food"] },
-  { id: "unfinished", label: "I start things and never finish them", domains: ["creative", "dev", "learning"] },
-  { id: "lonely", label: "I don't see my friends enough", domains: ["social", "games"] },
-  { id: "admin", label: "Admin eats my week", domains: ["ai", "money", "home"] },
-  { id: "sitting", label: "I sit down far too much", domains: ["health", "outdoors"] },
-  { id: "photos", label: "My photos and files are an unsorted mess", domains: ["media"] },
-  { id: "bored", label: "My weekends blur into each other", domains: ["outdoors", "games", "social"] },
-  { id: "waste", label: "I throw away too much food and stuff", domains: ["food", "home"] },
-  { id: "stuck", label: "I want to get better at something and I'm stuck", domains: ["learning", "creative", "health"] },
+export const FRUSTRATIONS: { id: string; label: string; hint: string; domains: string[] }[] = [
+  { id: "forget", label: "I forget things I meant to do", hint: "Remembered at 2am, gone by morning", domains: ["home", "social", "learning"] },
+  { id: "toomanytabs", label: "I drown in tabs, notes and saved links", hint: "Saved for later, never once reopened", domains: ["learning", "ai", "media"] },
+  { id: "moneyleak", label: "Money disappears and I don't know where", hint: "The statement is a monthly mystery", domains: ["money"] },
+  { id: "dinner", label: "Deciding what to eat is exhausting", hint: "Seven o'clock and still no answer", domains: ["food"] },
+  { id: "unfinished", label: "I start things and never finish them", hint: "A folder of promising beginnings", domains: ["creative", "dev", "learning"] },
+  { id: "lonely", label: "I don't see my friends enough", hint: "The group chat plans nothing", domains: ["social", "games"] },
+  { id: "admin", label: "Admin eats my week", hint: "Small jobs, every one of them dull", domains: ["ai", "money", "home"] },
+  { id: "sitting", label: "I sit down far too much", hint: "The whole day happens at a desk", domains: ["health", "outdoors"] },
+  { id: "photos", label: "My photos and files are an unsorted mess", hint: "Thousands of files, no order at all", domains: ["media"] },
+  { id: "bored", label: "My weekends blur into each other", hint: "Saturday looks like last Saturday", domains: ["outdoors", "games", "social"] },
+  { id: "waste", label: "I throw away too much food and stuff", hint: "The bin keeps getting things that work", domains: ["food", "home"] },
+  { id: "stuck", label: "I want to get better at something and I'm stuck", hint: "Practice that stopped paying off", domains: ["learning", "creative", "health"] },
 ];
 
 export const VIBES: { id: string; label: string; hint: string; domains: string[]; twists: string[] }[] = [

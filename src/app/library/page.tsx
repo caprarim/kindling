@@ -22,7 +22,7 @@ export default function LibraryPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6 sm:py-14">
       <div className="flex flex-col gap-2">
-        <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight sm:text-4xl">
+        <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight text-balance sm:text-4xl">
           The library
         </h1>
         <p className="text-sm/relaxed text-muted-foreground text-pretty sm:text-base/relaxed">
@@ -33,7 +33,7 @@ export default function LibraryPage() {
       </div>
 
       {saved.length ? (
-        <div className="grid items-start gap-5 md:grid-cols-2">
+        <div className="grid items-start gap-5 md:grid-cols-2 lg:grid-cols-3">
           {saved.map((idea, i) => (
             <IdeaCard key={idea.id} idea={idea} index={i} onRemove={removeSaved} />
           ))}
@@ -50,7 +50,7 @@ export default function LibraryPage() {
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button className="rounded-full" render={<Link href="/" />}>
+            <Button size="lg" render={<Link href="/" />}>
               <SparklesIcon data-icon="inline-start" />
               Find some ideas
             </Button>

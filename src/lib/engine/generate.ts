@@ -107,14 +107,40 @@ function twistPool(p: Profile) {
 }
 
 /** `domain:focus` pairs the person is in the market for. */
-function focusPool(p: Profile): { domain: string; focus: string }[] {
-  if (p.focuses.length) {
-    return p.focuses.map((f) => {
-      const [domain, focus] = f.split(":");
-      return { domain, focus };
-    });
+function focusPool(p: Profile, seen?: Set<string>): { domain: string; focus: string }[] {
+  const chosen = p.focuses.length
+    ? p.focuses.map((f) => {
+        const [domain, focus] = f.split(":");
+        return { domain, focus };
+      })
+    : effectiveDomains(p).flatMap((d) =>
+        (DOMAIN_BY_ID.get(d)?.focuses ?? []).map((f) => ({ domain: d, focus: f.id })),
+      );
+
+  // One corner holds only a handful of problems, and a batch uses all of them
+  // at once. Asking for three more then returns the same three headings for
+  // ever. Once the corner is spent the neighbouring corners of the same area
+  // open up, which keeps the ideas on the subject without repeating them.
+  if (!p.focuses.length || !seen?.size) return chosen;
+
+  const shown = new Set<string>();
+  for (const id of seen) {
+    const parts = id.split(".");
+    if (parts.length >= 6) shown.add(`${parts[0]}.${parts[1]}.${parts[5]}`);
   }
-  return effectiveDomains(p).flatMap((d) =>
+
+  const spent = chosen.every(({ domain, focus }) => {
+    const def = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
+    const problems = def?.problems.length ?? 0;
+    if (!problems) return true;
+    for (let i = 0; i < problems; i++) {
+      if (!shown.has(`${domain}.${focus}.p${i}`)) return false;
+    }
+    return true;
+  });
+  if (!spent) return chosen;
+
+  return [...new Set(chosen.map((c) => c.domain))].flatMap((d) =>
     (DOMAIN_BY_ID.get(d)?.focuses ?? []).map((f) => ({ domain: d, focus: f.id })),
   );
 }
@@ -184,7 +210,7 @@ export function generateIdeas(
   count = 3,
   salt = "",
 ): GenerateResult {
-  const focuses = focusPool(p);
+  const focuses = focusPool(p, seen);
   const mechanics = mechanicPool(p);
   const twists = twistPool(p);
 
@@ -206,15 +232,25 @@ export function generateIdeas(
   const enoughAudiences =
     new Set(focuses.flatMap(({ domain }) => audiencePool(p, domain))).size >= count;
 
+  // A heading that has already been shown is worth avoiding for as long as an
+  // unused one exists, because the same three names coming back is what makes
+  // a second batch look like the first one.
+  const shownProblems = new Set<string>();
+  for (const id of seen) {
+    const parts = id.split(".");
+    if (parts.length >= 6) shownProblems.add(`${parts[0]}.${parts[1]}.${parts[5]}`);
+  }
+
   // Each pass drops one variety rule, so a narrow profile still fills the page.
   const passes = [
-    { focus: enoughFocuses, audience: enoughAudiences, mechanic: true, twist: true, problem: true, seenOk: false },
-    { focus: false, audience: enoughAudiences, mechanic: true, twist: true, problem: true, seenOk: false },
-    { focus: false, audience: false, mechanic: true, twist: true, problem: true, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: true, problem: true, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: false, problem: true, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: false, problem: false, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: false, problem: false, seenOk: true },
+    { focus: enoughFocuses, audience: enoughAudiences, mechanic: true, twist: true, problem: true, fresh: true, seenOk: false },
+    { focus: false, audience: enoughAudiences, mechanic: true, twist: true, problem: true, fresh: true, seenOk: false },
+    { focus: false, audience: false, mechanic: true, twist: true, problem: true, fresh: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: true, problem: true, fresh: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: true, problem: true, fresh: false, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: true, fresh: false, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, seenOk: true },
   ];
 
   for (const rules of passes) {
@@ -245,6 +281,7 @@ export function generateIdeas(
       if (rules.mechanic && used.mechanics.has(mechanic.id)) continue;
       if (rules.twist && used.twists.has(twist.id)) continue;
       if (rules.problem && used.problems.has(problemKey)) continue;
+      if (rules.fresh && shownProblems.has(problemKey)) continue;
       if (!rules.seenOk && used.titles.has(title)) continue;
       if (!rules.seenOk && seen.has(fingerprint)) continue;
       if (rules.seenOk && seen.has(fingerprint)) exhausted = true;
@@ -261,7 +298,8 @@ export function generateIdeas(
     }
   }
 
-  const ideas = drafts.map((draft, i) => buildIdea(p, draft, i));
+  const spin = Math.floor(r() * 5);
+  const ideas = drafts.map((draft, i) => buildIdea(p, draft, spin + i));
   return { ideas, exhausted };
 }
 
@@ -284,10 +322,13 @@ function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
 
   // Three ideas that all open "A phone app that helps X" read as one idea
   // three times, however different the rest of the sentence is.
+  const lower = `${thing.charAt(0).toLowerCase()}${thing.slice(1)}`;
   const openings = [
     `${thing} that helps ${who} ${problem}.`,
+    `${thing} to ${problem}, built for ${who}.`,
+    `For ${who}: ${lower} to ${problem}.`,
     `${thing} that lets ${who} ${problem}.`,
-    `For ${who}: ${thing.charAt(0).toLowerCase()}${thing.slice(1)} to ${problem}.`,
+    `${thing} to ${problem}.`,
   ];
 
   return {

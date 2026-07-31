@@ -236,16 +236,67 @@ if (new Set(clips.map((i) => i.pitch.split(" ").slice(0, 5).join(" "))).size < 3
 }
 console.log("✓ 'a clipping tool for gamers' keeps its corner, its audience and three distinct openings");
 
-// A half-sure reading still asks, but it asks with its guess already ticked.
+// A half-sure reading asks a plain question. Nothing arrives already ticked:
+// a guess wearing a tick reads as a decision that was made without asking.
 const unsure = applyReading({ ...emptyProfile(), path: "has-idea" }, "a budgeting app");
 const guess = nextQuestion(unsure);
-if (guess?.id !== "domains" || !guess.preselect?.includes("money")) {
-  throw new Error(`weak reading did not offer its guess: ${JSON.stringify(guess?.preselect)}`);
+if (guess?.id !== "domains") {
+  throw new Error(`a half-sure reading did not ask which area: ${guess?.id}`);
+}
+if (guess.preselect?.length) {
+  throw new Error(`the question arrived pre-ticked: ${JSON.stringify(guess.preselect)}`);
 }
 if (!guess.title.endsWith("?")) {
   throw new Error(`the guess is not a question: "${guess.title}"`);
 }
-console.log("✓ a half-sure reading asks with its guess ticked");
+console.log("✓ a half-sure reading asks a plain question with nothing ticked");
+
+// Nothing anywhere in the flow may arrive with ticks already in it.
+let ticks: Profile = { ...emptyProfile() };
+for (let i = 0; i < 20; i++) {
+  const q = nextQuestion(ticks);
+  if (!q) break;
+  if (q.preselect?.length) throw new Error(`${q.id} arrives pre-ticked`);
+  const answer = q.kind === "text" ? ["i wanna build a website that will help gym newcomers in gym"] : [q.choices![0].id];
+  ticks = {
+    ...ticks,
+    [q.field]: q.kind === "single" || q.kind === "text" ? answer[0] : answer,
+  } as Profile;
+  if (q.field === "ideaText") ticks = applyReading(ticks, answer[0]);
+}
+console.log("✓ no question arrives pre-ticked");
+
+// Three more must mean three more, not the same three headings again.
+const narrow: Profile = {
+  ...emptyProfile(),
+  path: "rough-direction",
+  domains: ["health"],
+  focuses: ["health:training"],
+  audiences: ["health:chronic"],
+  skillLevel: "strong",
+  surfaces: ["web"],
+  timeBudget: "few-weeks",
+  motivations: ["scratch"],
+};
+const across = new Set<string>();
+const headings: string[] = [];
+for (let b = 0; b < 3; b++) {
+  const { ideas } = generateIdeas(narrow, across, 3, `batch${b}`);
+  for (const idea of ideas) {
+    across.add(idea.id);
+    headings.push(idea.title);
+    const opening = idea.pitch.split(". ")[0];
+    if (headings.filter((h) => h === idea.title).length > 1) {
+      throw new Error(`heading "${idea.title}" came back in batch ${b}`);
+    }
+    if (!opening.length) throw new Error("an idea arrived with no opening sentence");
+  }
+  const openings = ideas.map((i) => i.pitch.split(" ").slice(0, 4).join(" "));
+  if (new Set(openings).size < ideas.length) {
+    throw new Error(`batch ${b} opens the same way twice: ${openings.join(" | ")}`);
+  }
+}
+console.log("✓ nine ideas across three batches, no repeated heading and no repeated opening");
 
 // Who a thing is for must never decide what it is about.
 const audienceCases: [string, string, string][] = [

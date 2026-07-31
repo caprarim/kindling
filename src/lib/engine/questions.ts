@@ -26,20 +26,36 @@ import type { Choice, Profile, Question } from "./types";
 
 const has = (p: Profile, id: string) => p.skipped.includes(id);
 
-/** Where each question sits on the bar. Kept in one place so it stays honest. */
+/**
+ * Where each question sits on the bar. Kept in one place so it stays honest,
+ * and ordered so that no route can ever make the bar travel backwards.
+ */
 const STEP = {
-  path: 0,
-  idea: 0.1,
-  domains: 0.2,
-  frustrations: 0.28,
-  vibes: 0.36,
-  focuses: 0.4,
-  audiences: 0.54,
-  skill: 0.66,
+  path: 0.05,
+  idea: 0.12,
+  frustrations: 0.2,
+  vibes: 0.28,
+  areas: 0.34,
+  domains: 0.34,
+  focuses: 0.45,
+  audiences: 0.56,
+  skill: 0.67,
   surfaces: 0.78,
   time: 0.88,
   motivations: 0.95,
 };
+
+/**
+ * The sideways route is reachable two ways, and the bar has to climb on both.
+ *
+ * Someone who took it from the start is a fifth of the way in. Someone who
+ * bounced off the area grid has already spent that fifth, so their copy of the
+ * same three questions sits in the gap above it rather than rewinding to it.
+ */
+const AFTER_GRID = { frustrations: 0.36, vibes: 0.39, areas: 0.42 };
+
+const ladderStep = (p: Profile, id: keyof typeof AFTER_GRID) =>
+  has(p, "domains") ? AFTER_GRID[id] : STEP[id];
 
 const readings = new Map<string, Reading>();
 
@@ -101,37 +117,62 @@ export function detectFocuses(text: string, domains: string[]): string[] {
   return reading(text).focuses.filter((id) => !allowed.size || allowed.has(id.split(":")[0]));
 }
 
+/**
+ * Areas that the sideways answers point at, strongest first.
+ *
+ * Annoyances are the firmer signal, so they outweigh gut feel. Both are counted
+ * rather than taken in turn: someone annoyed by wasted food who also wants
+ * something cosy should land on cooking, not on whichever question came first.
+ */
+function impliedDomains(p: Profile): string[] {
+  const score = new Map<string, number>();
+  const bump = (ids: string[], by: number) => {
+    for (const id of ids) score.set(id, (score.get(id) ?? 0) + by);
+  };
+
+  for (const f of p.frustrations) bump(FRUSTRATIONS.find((x) => x.id === f)?.domains ?? [], 1);
+  for (const v of p.vibes) bump(VIBES.find((x) => x.id === v)?.domains ?? [], 0.7);
+
+  return [...score.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}
+
 /** The domains ideas should be generated from, whatever route got here. */
 export function effectiveDomains(p: Profile): string[] {
   if (p.domains.length) return p.domains;
-
-  const fromFrustration = p.frustrations.flatMap(
-    (f) => FRUSTRATIONS.find((x) => x.id === f)?.domains ?? [],
-  );
-  if (fromFrustration.length) return [...new Set(fromFrustration)];
-
-  const fromVibe = p.vibes.flatMap((v) => VIBES.find((x) => x.id === v)?.domains ?? []);
-  if (fromVibe.length) return [...new Set(fromVibe)];
-
-  return DOMAINS.map((d) => d.id);
+  const implied = impliedDomains(p);
+  return implied.length ? implied : DOMAINS.map((d) => d.id);
 }
 
-const domainChoices = (): Choice[] =>
-  DOMAINS.map((d) => ({ id: d.id, label: d.label, hint: d.blurb }));
+/**
+ * The areas everything downstream narrows inside.
+ *
+ * Answering the area question directly and arriving at the same place through
+ * annoyances have to behave identically from here on, or half the flow quietly
+ * switches itself off for anyone who took the sideways route.
+ */
+function narrowingDomains(p: Profile): string[] {
+  return (p.domains.length ? p.domains : impliedDomains(p)).slice(0, 3);
+}
+
+const domainChoices = (ids?: string[]): Choice[] =>
+  (ids?.length ? ids.flatMap((id) => DOMAIN_BY_ID.get(id) ?? []) : DOMAINS).map((d) => ({
+    id: d.id,
+    label: d.label,
+    hint: d.blurb,
+  }));
 
 /** Corners the description already pointed at, inside the domains in play. */
 function detectedFocuses(p: Profile): string[] {
-  const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
   if (!p.ideaText || reading(p.ideaText).confidence === "none") return [];
-  return detectFocuses(p.ideaText, picked.slice(0, 3));
+  return detectFocuses(p.ideaText, narrowingDomains(p));
 }
 
 /** Focus options pulled from whichever domains the person actually chose. */
 function focusChoices(p: Profile): Choice[] {
-  const picked = p.domains.length ? p.domains : effectiveDomains(p).slice(0, 2);
+  const picked = narrowingDomains(p);
   const out: Choice[] = [];
 
-  for (const id of picked.slice(0, 3)) {
+  for (const id of picked) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
     for (const f of d.focuses) {
@@ -147,9 +188,32 @@ function focusChoices(p: Profile): Choice[] {
   return out;
 }
 
-/** Audience options, likewise derived. Plus the honest "just me" option. */
+/**
+ * Who it could be for when no area is settled.
+ *
+ * These are stored as free text rather than as `domain:audience` ids, because a
+ * made-up domain id would come back out of the generator as the word "people".
+ */
+const OPEN_AUDIENCES: Choice[] = [
+  { id: "text:friends and family", label: "Friends and family", hint: "People already within reach" },
+  { id: "text:people at work", label: "People at work", hint: "Colleagues, clients, a small team" },
+  { id: "text:complete beginners", label: "Complete beginners", hint: "Anyone starting from nothing" },
+  {
+    id: "text:anyone with the same problem",
+    label: "Anyone with the same problem",
+    hint: "Strangers who would recognise it instantly",
+  },
+];
+
+/**
+ * Audience options, likewise derived. Plus the honest "just me" option.
+ *
+ * Three areas produce twelve candidates, several of which read as the same
+ * people said twice, so each carries the area it came from and exact repeats
+ * are dropped.
+ */
 function audienceChoices(p: Profile): Choice[] {
-  const picked = (p.domains.length ? p.domains : effectiveDomains(p)).slice(0, 3);
+  const picked = narrowingDomains(p);
   const named = reading(p.ideaText).audience;
   const out: Choice[] = [
     { id: "self", label: "Me, and nobody else", hint: "One user is a perfectly good target" },
@@ -157,13 +221,21 @@ function audienceChoices(p: Profile): Choice[] {
   if (named) {
     out.unshift({ id: `text:${named}`, label: named, hint: "The people you already named" });
   }
+
+  if (!picked.length) return [...out, ...OPEN_AUDIENCES];
+
+  const seen = new Set<string>();
   for (const id of picked) {
     const d = DOMAIN_BY_ID.get(id);
     if (!d) continue;
     for (const a of d.audiences) {
+      const key = a.label.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
       out.push({
         id: `${d.id}:${a.id}`,
         label: a.label.charAt(0).toUpperCase() + a.label.slice(1),
+        hint: picked.length > 1 ? d.label : undefined,
       });
     }
   }
@@ -181,6 +253,16 @@ function surfaceChoices(p: Profile): Choice[] {
 
   return scored.map(({ s }) => ({ id: s.id, label: s.label, hint: s.hint }));
 }
+
+/**
+ * True when the areas have to be arrived at sideways.
+ *
+ * Either the person said they had no idea, or the grid of areas was put in
+ * front of them and none of it fit. Both mean the same thing: asking directly
+ * has already failed, so the next questions must not ask directly again.
+ */
+const needsLadder = (p: Profile) =>
+  !p.domains.length && (p.path === "no-idea" || has(p, "domains"));
 
 export function nextQuestion(p: Profile): Question | null {
   // ── 1. Where are you starting from? ──────────────────────────────────────
@@ -211,126 +293,114 @@ export function nextQuestion(p: Profile): Question | null {
     };
   }
 
-  // ── 2a. They have an idea: hear it, then narrow it ───────────────────────
-  if (p.path === "has-idea") {
-    if (p.ideaText === undefined) {
-      return {
-        id: "ideaText",
-        field: "ideaText",
-        kind: "text",
-        progress: STEP.idea,
-        title: "What do you want to build?",
-        placeholder: "e.g. a clipping tool for gamers",
-      };
-    }
-    if (!p.domains.length && !has(p, "domains")) {
-      const r = reading(p.ideaText);
-      const names = r.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
-
-      // A half-sure reading asks rather than assumes, but it asks as a question
-      // with a real answer in it, not as a statement about what was typed.
-      if (r.confidence === "weak" && names.length) {
-        return {
-          id: "domains",
-          field: "domains",
-          kind: "multi",
-          min: 1,
-          max: 3,
-          progress: STEP.domains,
-          title: `Is this ${names[0]}, or something else?`,
-          choices: domainChoices(),
-          preselect: r.domains,
-          escape: { label: "None of these fit" },
-        };
-      }
-
-      return {
-        id: "domains",
-        field: "domains",
-        kind: "multi",
-        min: 1,
-        max: 3,
-        progress: STEP.domains,
-        title: "Which area does it belong in?",
-        choices: domainChoices(),
-        escape: { label: "None of these fit" },
-      };
-    }
-  }
-
-  // ── 2b. Rough direction: pick the territory ──────────────────────────────
-  if (p.path === "rough-direction" && !p.domains.length && !has(p, "domains")) {
+  // ── 2. They have an idea: hear it before asking anything else ────────────
+  if (p.path === "has-idea" && p.ideaText === undefined) {
     return {
-      id: "domains",
-      field: "domains",
-      kind: "multi",
-      min: 1,
-      max: 3,
-      progress: STEP.domains,
-      title: "Which area pulls hardest?",
-      choices: domainChoices(),
-      escape: { label: "None of these, really" },
+      id: "ideaText",
+      field: "ideaText",
+      kind: "text",
+      progress: STEP.idea,
+      title: "What do you want to build?",
+      placeholder: "e.g. a clipping tool for gamers",
     };
   }
 
-  // ── 2c. No idea at all: a ladder of fallbacks that always lands ──────────
-  if (p.path === "no-idea") {
-    if (!p.domains.length && !has(p, "interests")) {
-      return {
-        id: "interests",
-        field: "domains",
-        kind: "multi",
-        min: 1,
-        max: 3,
-        progress: STEP.domains,
-        title: "What holds your attention on a slow evening?",
-        choices: domainChoices(),
-        escape: { label: "Honestly, none of these" },
-      };
-    }
-
-    if (
-      !p.domains.length &&
-      has(p, "interests") &&
-      !p.frustrations.length &&
-      !has(p, "frustrations")
-    ) {
+  // ── 3. The sideways route, for anyone the area grid cannot serve ─────────
+  //
+  // Someone with no idea is the worst possible audience for a list of twelve
+  // areas: it is the same question they already failed to answer, in a grid.
+  // Annoyance and gut feel are things anybody can answer on a blank day, and
+  // between them they point at an area far more reliably than guessing does.
+  if (needsLadder(p)) {
+    if (!p.frustrations.length && !has(p, "frustrations")) {
       return {
         id: "frustrations",
         field: "frustrations",
         kind: "multi",
         min: 1,
         max: 3,
-        progress: STEP.frustrations,
-        title: "What actually annoys you?",
-        choices: FRUSTRATIONS.map((f) => ({ id: f.id, label: f.label })),
-        escape: { label: "None of these either" },
+        progress: ladderStep(p, "frustrations"),
+        title:
+          p.path === "no-idea"
+            ? "Never mind ideas. What actually annoys you?"
+            : "Fair enough. What actually annoys you?",
+        choices: FRUSTRATIONS.map((f) => ({ id: f.id, label: f.label, hint: f.hint })),
+        escape: { label: "None of these, honestly" },
       };
     }
 
-    // The floor. Everyone lands here, and it always produces a signal.
-    if (
-      !p.domains.length &&
-      !p.frustrations.length &&
-      has(p, "frustrations") &&
-      !p.vibes.length
-    ) {
+    // The floor. With no annoyances to work from this cannot be escaped,
+    // because something has to come out of this route.
+    if (!p.vibes.length && !has(p, "vibes")) {
       return {
         id: "vibes",
         field: "vibes",
         kind: "multi",
         min: 2,
         max: 2,
-        progress: STEP.vibes,
-        title: "Which two have the strongest pull?",
+        progress: ladderStep(p, "vibes"),
+        title: p.frustrations.length
+          ? "And which two of these have the strongest pull?"
+          : "Which two of these have the strongest pull?",
         choices: VIBES.map((v) => ({ id: v.id, label: v.label, hint: v.hint })),
+        escape: p.frustrations.length ? { label: "Neither, really" } : undefined,
+      };
+    }
+
+    // What those answers already point at, offered back as a short list rather
+    // than as the full twelve. Confirming a narrowed list is a real question;
+    // re-showing everything would admit the last two screens changed nothing.
+    const implied = impliedDomains(p);
+    if (implied.length > 1 && !has(p, "areas")) {
+      return {
+        id: "areas",
+        field: "domains",
+        kind: "multi",
+        min: 1,
+        max: 3,
+        progress: ladderStep(p, "areas"),
+        title:
+          implied.length > 4
+            ? "That points at a fair few areas. Which are worth a weekend?"
+            : "That points here. Which of these is worth a weekend?",
+        choices: domainChoices(implied),
+        escape: { label: "Show me every area instead" },
       };
     }
   }
 
-  // ── 3. Narrow to a corner, using their own picks ─────────────────────────
-  if (p.domains.length && !p.focuses.length && !has(p, "focuses")) {
-    const labels = p.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
+  // ── 4. The full grid, for anyone the direct question suits ───────────────
+  if (!p.domains.length && !has(p, "domains") && (!needsLadder(p) || has(p, "areas"))) {
+    const r = reading(p.ideaText);
+    const names = r.domains.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
+
+    // A half-sure reading asks rather than assumes, but it asks as a question
+    // with a real answer in it, not as a statement about what was typed.
+    const title =
+      p.path === "has-idea"
+        ? r.confidence === "weak" && names.length
+          ? `Is this ${names[0]}, or something else?`
+          : "Which area does it belong in?"
+        : "Which area pulls hardest?";
+
+    return {
+      id: "domains",
+      field: "domains",
+      kind: "multi",
+      min: 1,
+      max: 3,
+      progress: has(p, "areas") ? AFTER_GRID.areas + 0.02 : STEP.domains,
+      title,
+      choices: domainChoices(),
+      preselect: [],
+      escape: { label: p.path === "has-idea" ? "None of these fit" : "None of these, really" },
+    };
+  }
+
+  // ── 5. Narrow to a corner, using their own picks ─────────────────────────
+  const narrowing = narrowingDomains(p);
+  if (narrowing.length && !p.focuses.length && !has(p, "focuses")) {
+    const labels = narrowing.map((id) => DOMAIN_BY_ID.get(id)?.label).filter(Boolean);
     const detected = detectedFocuses(p);
     return {
       id: "focuses",
@@ -344,14 +414,17 @@ export function nextQuestion(p: Profile): Question | null {
           ? `Which corner of ${labels[0]}?`
           : `Which corners of ${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}?`,
       choices: focusChoices(p),
-      preselect: detected,
+      preselect: [],
       escape: { label: "Keep the whole area in play" },
     };
   }
 
-  // ── 4. Who it's for ──────────────────────────────────────────────────────
+  // ── 6. Who it's for ──────────────────────────────────────────────────────
   if (!p.audiences.length && !has(p, "audiences")) {
     const r = reading(p.ideaText);
+    // Someone who started from nothing is almost always their own first user,
+    // so that is ticked rather than asked as though it were an open question.
+    const assumeSelf = r.audienceSelf || (p.path === "no-idea" && !p.ideaText);
     return {
       id: "audiences",
       field: "audiences",
@@ -359,9 +432,13 @@ export function nextQuestion(p: Profile): Question | null {
       min: 1,
       max: 3,
       progress: STEP.audiences,
-      title: "Who is it for?",
+      title: p.path === "no-idea" ? "Who would you build it for?" : "Who is it for?",
       choices: audienceChoices(p),
-      preselect: r.audienceSelf ? ["self"] : [],
+      preselect: assumeSelf ? ["self"] : [],
+      note:
+        r.audienceSelf || !assumeSelf
+          ? undefined
+          : "Building it for yourself is the usual answer. Change it, or carry on.",
       escape: { label: "No idea yet" },
     };
   }
@@ -416,6 +493,7 @@ export function nextQuestion(p: Profile): Question | null {
   }
 
   if (!p.timeBudget) {
+    const fromText = reading(p.ideaText).timeBudget;
     return {
       id: "timeBudget",
       field: "timeBudget",
@@ -428,11 +506,15 @@ export function nextQuestion(p: Profile): Question | null {
         { id: "few-months", label: "A few months", hint: "Enough for something with depth" },
         { id: "open", label: "No deadline at all", hint: "It can grow for as long as it stays interesting" },
       ],
-      preselect: reading(p.ideaText).timeBudget ? [reading(p.ideaText).timeBudget!] : [],
+      preselect: fromText ? [fromText] : [],
     };
   }
 
   if (!p.motivations.length && !has(p, "motivations")) {
+    // "Me, and nobody else" and "Fix my own annoyance" are the same sentence
+    // twice. Having heard one, the other arrives ticked rather than asked.
+    const fromText = reading(p.ideaText).motivations;
+    const fromSelf = !fromText.length && p.audiences.includes("self");
     return {
       id: "motivations",
       field: "motivations",
@@ -442,7 +524,8 @@ export function nextQuestion(p: Profile): Question | null {
       progress: STEP.motivations,
       title: "Why are you building it?",
       choices: MOTIVATIONS.map((m) => ({ id: m.id, label: m.label, hint: m.hint })),
-      preselect: reading(p.ideaText).motivations,
+      preselect: fromText.length ? fromText : fromSelf ? ["scratch"] : [],
+      note: fromSelf ? "Ticked from who you said it was for. Change it, or carry on." : undefined,
       escape: { label: "Not sure yet" },
     };
   }
