@@ -264,6 +264,29 @@ for (let i = 0; i < 20; i++) {
   } as Profile;
   if (q.field === "ideaText") ticks = applyReading(ticks, answer[0]);
 }
+// Banned copy. These have each been asked for by name, so a check is cheaper
+// than remembering.
+const BANNED = /ticked from|matched the description|reads like|unseen combinations/i;
+for (const path of ["has-idea", "rough-direction", "no-idea"] as const) {
+  let walkCopy: Profile = { ...emptyProfile(), path };
+  for (let i = 0; i < 20; i++) {
+    const q = nextQuestion(walkCopy);
+    if (!q) break;
+    const lines = [q.title, ...(q.choices ?? []).flatMap((c) => [c.label, c.hint ?? ""])];
+    for (const line of lines) {
+      if (BANNED.test(line)) throw new Error(`${q.id} shows banned copy: "${line}"`);
+    }
+    if (q.preselect?.length) throw new Error(`${q.id} arrives pre-ticked on the ${path} path`);
+    const answer = q.kind === "text" ? ["i wanna build a website that will help gym newcomers in gym"] : [q.choices![0].id];
+    walkCopy = {
+      ...walkCopy,
+      [q.field]: q.kind === "single" || q.kind === "text" ? answer[0] : answer,
+    } as Profile;
+    if (q.field === "ideaText") walkCopy = applyReading(walkCopy, answer[0]);
+  }
+}
+console.log("✓ all three paths: nothing pre-ticked, no banned copy");
+
 console.log("✓ no question arrives pre-ticked");
 
 // Three more must mean three more, not the same three headings again.

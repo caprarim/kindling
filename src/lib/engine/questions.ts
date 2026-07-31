@@ -434,11 +434,7 @@ export function nextQuestion(p: Profile): Question | null {
       progress: STEP.audiences,
       title: p.path === "no-idea" ? "Who would you build it for?" : "Who is it for?",
       choices: audienceChoices(p),
-      preselect: assumeSelf ? ["self"] : [],
-      note:
-        r.audienceSelf || !assumeSelf
-          ? undefined
-          : "Building it for yourself is the usual answer. Change it, or carry on.",
+      preselect: [],
       escape: { label: "No idea yet" },
     };
   }
@@ -487,7 +483,7 @@ export function nextQuestion(p: Profile): Question | null {
       progress: STEP.surfaces,
       title: "What should it be built as?",
       choices: surfaceChoices(p),
-      preselect: reading(p.ideaText).surfaces,
+      preselect: [],
       escape: { label: "Surprise me" },
     };
   }
@@ -506,7 +502,7 @@ export function nextQuestion(p: Profile): Question | null {
         { id: "few-months", label: "A few months", hint: "Enough for something with depth" },
         { id: "open", label: "No deadline at all", hint: "It can grow for as long as it stays interesting" },
       ],
-      preselect: fromText ? [fromText] : [],
+      preselect: [],
     };
   }
 
@@ -524,8 +520,7 @@ export function nextQuestion(p: Profile): Question | null {
       progress: STEP.motivations,
       title: "Why are you building it?",
       choices: MOTIVATIONS.map((m) => ({ id: m.id, label: m.label, hint: m.hint })),
-      preselect: fromText.length ? fromText : fromSelf ? ["scratch"] : [],
-      note: fromSelf ? "Ticked from who you said it was for. Change it, or carry on." : undefined,
+      preselect: [],
       escape: { label: "Not sure yet" },
     };
   }
