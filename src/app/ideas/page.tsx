@@ -11,7 +11,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { IdeaCard } from "@/components/idea-card";
 import { useKindling } from "@/lib/store";
 import { describedCorner } from "@/lib/engine/generate";
-import { DOMAIN_BY_ID } from "@/lib/engine/taxonomy";
 import type { Profile } from "@/lib/engine/types";
 
 /**
@@ -22,12 +21,10 @@ import type { Profile } from "@/lib/engine/types";
  */
 function readBack(profile: Profile): string {
   const said = profile.ideaText?.trim();
-  const corner = describedCorner(profile);
-  const area = corner ? DOMAIN_BY_ID.get(corner.domain)?.label : undefined;
 
-  if (said && area) {
+  if (said && describedCorner(profile)) {
     const quoted = said.length > 70 ? `${said.slice(0, 70).trimEnd()}…` : said;
-    return `You said “${quoted}”. The first one answers that head on. The other two come from elsewhere in ${area}, in case the better project was next door. Each has a first step, so there is something to do tonight.`;
+    return `You said “${quoted}”. The first one answers that head on. The other two are different projects for the same sort of person, in case the better one was next door. Each has a first step, so there is something to do tonight.`;
   }
   return "Every one is a real project with a first step, so there is something to open an editor and do tonight. Nothing here is a repeat of anything shown before.";
 }

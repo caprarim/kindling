@@ -28,8 +28,19 @@ A corner read out of a description is an anchor, not an instruction. Reading
 "a habit tracker" as Daily habits and then serving three daily-habit ideas is
 the description handed back in three fonts, which is exactly what a user
 reported: "it just told me what I told it". So the first idea of every batch is
-taken from the corner that was read, and the rest of that area opens up around
-it. A corner someone tapped off the grid is left alone: that one is an answer.
+taken from the corner that was read, and the other two open out around it. A
+corner someone tapped off the grid is left alone: that one is an answer.
+
+Opening out is measured in the people a corner is for, never in which heading
+it files under. The same user tried again and got a family photo tool and a
+second clipping tool, because "Video, photo & audio" holds both the family
+archivist and short-form video, which is livestreams under another name.
+Sharing no audience makes a corner a stranger and it is dropped. Sharing every
+audience makes it the same product twice and it is barred from the batch.
+Sharing some, and not all, is the only distance worth showing. Where an area
+cannot supply two of those, the corner names its own neighbours in other
+areas: a streamer's are the Discord they run and the month's income. No corner
+is left with fewer than two, which `scripts/distance.mts` checks.
 
 Which shape, which audience and which constraint an idea gets is not a free
 choice. Each corner names the shapes that suit it, the people it is actually

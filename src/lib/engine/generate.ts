@@ -148,11 +148,79 @@ export function describedCorner(p: Profile): { domain: string; focus: string } |
     : undefined;
 }
 
-/** Every corner of the areas these corners belong to. */
+/**
+ * How far one corner sits from another, measured in the people it is for.
+ *
+ * The taxonomy files livestream clipping and the family photo box under the
+ * same heading, because both are video. Nobody who asked for one wants the
+ * other, and offering it back is the single most obvious way to look like the
+ * question was never read. Who a corner is *for* separates them where the
+ * heading cannot.
+ *
+ * Sharing nobody makes a corner a stranger. Sharing everybody makes it the
+ * same product under a second name: short-form video and livestreams are both
+ * for streamers and creators, so a clipper turns up twice in one batch wearing
+ * different words. Sharing some of them, and not all, is the only distance
+ * worth showing: the same sort of person, a different project.
+ */
+type Distance = "same" | "near" | "twin" | "stranger";
+
+function focusDef(id: string) {
+  const [domain, focus] = id.split(":");
+  return DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
+}
+
+/** Corners named as serving the same person, in either direction. */
+function isNeighbour(a: string, b: string): boolean {
+  return Boolean(focusDef(a)?.neighbours?.includes(b) || focusDef(b)?.neighbours?.includes(a));
+}
+
+function distanceFrom(anchor: string, other: string): Distance {
+  if (anchor === other) return "same";
+  // A named neighbour is the whole point of naming it, and it lives in another
+  // area, so audience ids could never have found it.
+  if (isNeighbour(anchor, other)) return "near";
+  const mine = FOCUS_AUDIENCES[anchor] ?? [];
+  const theirs = FOCUS_AUDIENCES[other] ?? [];
+  // Nothing recorded either side. Silence is not evidence of a bad fit.
+  if (!mine.length || !theirs.length) return "near";
+  const shared = mine.filter((a) => theirs.includes(a));
+  if (!shared.length) return "stranger";
+  return shared.length === mine.length && shared.length === theirs.length ? "twin" : "near";
+}
+
+/** The closest any of these corners sits to `id`. */
+function nearestDistance(from: { domain: string; focus: string }[], id: string): Distance {
+  const order: Distance[] = ["same", "near", "twin", "stranger"];
+  let best: Distance = "stranger";
+  for (const c of from) {
+    const d = distanceFrom(`${c.domain}:${c.focus}`, id);
+    if (order.indexOf(d) < order.indexOf(best)) best = d;
+  }
+  return best;
+}
+
+/**
+ * Every corner of the areas these corners belong to, minus the strangers.
+ *
+ * Opening the area up is meant to find the better project next door, not to
+ * empty the drawer onto the table.
+ */
 function widen(chosen: { domain: string; focus: string }[]) {
-  return [...new Set(chosen.map((c) => c.domain))].flatMap((d) =>
+  const all = [...new Set(chosen.map((c) => c.domain))].flatMap((d) =>
     (DOMAIN_BY_ID.get(d)?.focuses ?? []).map((f) => ({ domain: d, focus: f.id })),
   );
+  // Areas that cannot supply a second project for the same person say where
+  // else to look. Without this a streamer gets one useful neighbour and then
+  // the same clipping tool again under a different heading.
+  for (const c of chosen) {
+    for (const id of focusDef(`${c.domain}:${c.focus}`)?.neighbours ?? []) {
+      const [domain, focus] = id.split(":");
+      if (!all.some((x) => x.domain === domain && x.focus === focus)) all.push({ domain, focus });
+    }
+  }
+  const kept = all.filter((c) => nearestDistance(chosen, `${c.domain}:${c.focus}`) !== "stranger");
+  return kept.length > chosen.length ? kept : all;
 }
 
 /** `domain:focus` pairs the person is in the market for. */
@@ -314,6 +382,15 @@ export function generateIdeas(
   // from it, so opening the area up never costs someone the thing they asked
   // about: one card is on the nose and the other two are somewhere new.
   const anchor = describedCorner(p);
+  const anchorId = anchor ? `${anchor.domain}:${anchor.focus}` : undefined;
+  // Corners for the same sort of person are what the other two slots are for.
+  // The described corner keeps a full share of its own, because its remaining
+  // problems beat a second name for the project already on the page.
+  const cornerWeight = (c: { domain: string; focus: string }) => {
+    if (!anchorId) return 1;
+    const d = distanceFrom(anchorId, `${c.domain}:${c.focus}`);
+    return d === "near" ? 3 : d === "same" ? 2.4 : 0.3;
+  };
   const mechanics = mechanicPool(p);
   const twists = twistPool(p);
   const byCorner = new Map<string, ReturnType<typeof twistsFor>>();
@@ -332,6 +409,7 @@ export function generateIdeas(
     focuses: new Set<string>(),
     titles: new Set<string>(),
     audiences: new Set<string>(),
+    steps: new Set<string>(),
   };
   let exhausted = false;
 
@@ -349,24 +427,31 @@ export function generateIdeas(
   }
 
   // Each pass drops one variety rule, so a narrow profile still fills the page.
+  // `twin` holds longest of the relaxable rules: a second name for the project
+  // already on the page is the complaint this whole path exists to answer, and
+  // one more problem out of the described corner beats it every time.
   const passes = [
-    { focus: enoughFocuses, audience: enoughAudiences, mechanic: true, twist: true, problem: true, fresh: true, seenOk: false },
-    { focus: false, audience: enoughAudiences, mechanic: true, twist: true, problem: true, fresh: true, seenOk: false },
-    { focus: false, audience: false, mechanic: true, twist: true, problem: true, fresh: true, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: true, problem: true, fresh: true, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: true, problem: true, fresh: false, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: false, problem: true, fresh: false, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, seenOk: false },
-    { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, seenOk: true },
+    { focus: enoughFocuses, audience: enoughAudiences, mechanic: true, twist: true, problem: true, fresh: true, twin: true, step: true, seenOk: false },
+    { focus: false, audience: enoughAudiences, mechanic: true, twist: true, problem: true, fresh: true, twin: true, step: true, seenOk: false },
+    { focus: false, audience: false, mechanic: true, twist: true, problem: true, fresh: true, twin: true, step: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: true, problem: true, fresh: true, twin: true, step: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: true, problem: true, fresh: false, twin: true, step: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: true, fresh: false, twin: true, step: true, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, twin: false, step: false, seenOk: false },
+    { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, twin: false, step: false, seenOk: true },
   ];
 
   for (const rules of passes) {
     if (drafts.length >= count) break;
 
     for (let i = 0; i < 1200 && drafts.length < count; i++) {
-      const { domain, focus } = anchor && !drafts.length && i < 600 ? anchor : pick(focuses, r);
+      const { domain, focus } =
+        anchor && !drafts.length && i < 600 ? anchor : weighted(focuses, cornerWeight, r);
       const focusDef = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
       if (!focusDef) continue;
+      if (rules.twin && anchorId && distanceFrom(anchorId, `${domain}:${focus}`) === "twin") {
+        continue;
+      }
 
       const problem = Math.floor(r() * focusDef.problems.length) % focusDef.problems.length;
       // Audiences belong to corners, not to areas: a livestream tool addressed
@@ -397,6 +482,10 @@ export function generateIdeas(
       if (rules.mechanic && used.mechanics.has(mechanic.id)) continue;
       if (rules.twist && used.twists.has(twist.id)) continue;
       if (rules.problem && used.problems.has(problemKey)) continue;
+      // The first step belongs to the corner, so two cards out of one corner
+      // print the same instruction twice. On screen that is the clearest
+      // possible signal that a batch is one idea wearing two names.
+      if (rules.step && used.steps.has(focusDef.build)) continue;
       if (rules.fresh && shownProblems.has(problemKey)) continue;
       if (!rules.seenOk && used.titles.has(title)) continue;
       if (!rules.seenOk && seen.has(fingerprint)) continue;
@@ -409,6 +498,7 @@ export function generateIdeas(
       used.twists.add(twist.id);
       used.problems.add(problemKey);
       used.titles.add(title);
+      used.steps.add(focusDef.build);
 
       drafts.push({ domain, focus, problem, audience, mechanic: mechanic.id, twist: twist.id, title, fingerprint });
     }

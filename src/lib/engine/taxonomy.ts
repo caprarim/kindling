@@ -23,6 +23,17 @@ export type Focus = {
   build: string;
   /** Where it goes once the first version works. */
   stretch: string;
+  /**
+   * Corners in *other* areas that serve the same person.
+   *
+   * Only needed where an area cannot supply a second different project for
+   * the people this corner is for. "Video, photo & audio" holds livestreams,
+   * short-form and podcasts for creators, and photo libraries for the family
+   * archivist, so a streamer asking about clipping has exactly one useful
+   * neighbour under that heading and four more one heading over: the Discord
+   * they run, and the month's income. Left empty where the siblings suffice.
+   */
+  neighbours?: string[];
 };
 
 export type Audience = { id: string; label: string };
@@ -365,6 +376,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Point it at one real folder and get browsing and deleting fast before anything clever goes in.",
         stretch: "Group by event from timestamps and location, then let every grouping be corrected.",
+        neighbours: ["home:stuff", "social:keepintouch"],
       },
       {
         id: "shortform",
@@ -380,6 +392,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Take one real long recording and make marking a clip range a single key press.",
         stretch: "Rank past clips by retention and describe what the strong openings had in common.",
+        neighbours: ["social:community", "money:freelance"],
       },
       {
         id: "live",
@@ -395,6 +408,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Take one real stream recording and make marking a range and exporting that range a single keypress. Nothing else ships first.",
         stretch: "Rank moments by what the chat did at the time, so the good bits surface themselves.",
+        neighbours: ["social:community", "money:freelance"],
       },
       {
         id: "podcast",
@@ -425,6 +439,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Make one shared album open from a plain link with nothing to install on the other end.",
         stretch: "Turn a year of contributions into something printable for one relative.",
+        neighbours: ["social:keepintouch", "home:stuff"],
       },
     ],
     audiences: [
@@ -690,6 +705,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Write down the eight meals genuinely cooked and build everything around those, not a recipe database.",
         stretch: "Rotate those eight so nothing lands twice in one week by accident.",
+        neighbours: ["home:chores", "money:spending"],
       },
       {
         id: "planning",
@@ -720,6 +736,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Start from twenty real fridge contents and the meals they can honestly make together.",
         stretch: "Report what still got thrown away, and let that reshape the shopping list.",
+        neighbours: ["money:spending", "home:stuff"],
       },
       {
         id: "hosting",
@@ -735,6 +752,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Build the backwards timeline for one real menu, from serving time to the first prep task.",
         stretch: "Produce the day-before prep list, split by what keeps and what does not.",
+        neighbours: ["social:organising", "social:local"],
       },
     ],
     audiences: [
@@ -921,6 +939,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Run it over one real week of messages and check every decision by hand before trusting any of it.",
         stretch: "Learn from the drafts that were edited before sending, not the ones sent untouched.",
+        neighbours: ["money:freelance", "social:keepintouch"],
       },
       {
         id: "reading",
@@ -951,6 +970,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Do the task manually once and write down every keystroke. That transcript is the specification.",
         stretch: "Report what it did each week in plain language, so trust is earned rather than assumed.",
+        neighbours: ["money:freelance", "money:spending"],
       },
       {
         id: "personal",
@@ -966,6 +986,7 @@ export const DOMAINS: Domain[] = [
         build:
           "Index one real folder locally and make retrieval good before adding any generation on top.",
         stretch: "Cite the exact note behind every answer, so a wrong answer is easy to correct.",
+        neighbours: ["learning:recall", "learning:selftaught"],
       },
     ],
     audiences: [
