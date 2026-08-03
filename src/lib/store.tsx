@@ -344,6 +344,36 @@ export function KindlingProvider({ children }: { children: React.ReactNode }) {
 
 export function useKindling(): Ctx {
   const ctx = useContext(KindlingContext);
-  if (!ctx) throw new Error("useKindling must be used inside <KindlingProvider>");
+  if (!ctx) {
+    return {
+      ready: false,
+      profile: emptyProfile(),
+      question: null,
+      batch: [],
+      saved: [],
+      seen: [],
+      seenCount: 0,
+      exhausted: false,
+      generating: false,
+      canGoBack: false,
+      depth: 0,
+      token: null,
+      syncing: false,
+      syncError: null,
+      cloudEnabled: false,
+      createNewAccount: async () => "",
+      signInWithCode: async () => {},
+      answer: () => {},
+      skip: () => {},
+      reopen: () => {},
+      back: () => {},
+      restart: () => {},
+      generate: () => {},
+      isSaved: () => false,
+      toggleSave: () => {},
+      removeSaved: () => {},
+      signOut: async () => {},
+    };
+  }
   return ctx;
 }
