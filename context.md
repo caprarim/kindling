@@ -42,6 +42,19 @@ cannot supply two of those, the corner names its own neighbours in other
 areas: a streamer's are the Discord they run and the month's income. No corner
 is left with fewer than two, which `scripts/distance.mts` checks.
 
+The anchor walks the whole relaxation ladder on its own before anything else
+is drafted. Sharing the ladder with the general search meant that once a
+corner's three problems had each been shown once, every strict pass rejected
+it, a neighbour took the first slot, and a batch went out with nothing in it
+about the thing that was typed while the page still claimed otherwise.
+
+A card is what it is, who it is for and what it does, then what it holds, then
+how it works, then the constraint, then where it goes once the first version
+runs, then the first step. The last two come from the corner rather than from
+the shape, so they are the sentences that could not have been written about
+any other idea. Where a batch has to draw twice from one corner, the second
+card drops the three of those that would otherwise appear verbatim twice.
+
 Which shape, which audience and which constraint an idea gets is not a free
 choice. Each corner names the shapes that suit it, the people it is actually
 for, and the constraints that contradict it, so a tool for cutting up

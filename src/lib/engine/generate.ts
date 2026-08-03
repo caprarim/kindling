@@ -441,16 +441,14 @@ export function generateIdeas(
     { focus: false, audience: false, mechanic: false, twist: false, problem: false, fresh: false, twin: false, step: false, seenOk: true },
   ];
 
-  for (const rules of passes) {
-    if (drafts.length >= count) break;
+  type Rules = (typeof passes)[number];
 
-    for (let i = 0; i < 1200 && drafts.length < count; i++) {
-      const { domain, focus } =
-        anchor && !drafts.length && i < 600 ? anchor : weighted(focuses, cornerWeight, r);
+  function attempt(rules: Rules, forced?: { domain: string; focus: string }): void {
+      const { domain, focus } = forced ?? weighted(focuses, cornerWeight, r);
       const focusDef = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
-      if (!focusDef) continue;
+      if (!focusDef) return;
       if (rules.twin && anchorId && distanceFrom(anchorId, `${domain}:${focus}`) === "twin") {
-        continue;
+        return;
       }
 
       const problem = Math.floor(r() * focusDef.problems.length) % focusDef.problems.length;
@@ -476,19 +474,19 @@ export function generateIdeas(
       // about different problems can never end up as the same word.
       const title = focusDef.names[problem % focusDef.names.length];
 
-      if (used.fingerprints.has(fingerprint)) continue;
-      if (rules.focus && used.focuses.has(`${domain}.${focus}`)) continue;
-      if (rules.audience && used.audiences.has(audience)) continue;
-      if (rules.mechanic && used.mechanics.has(mechanic.id)) continue;
-      if (rules.twist && used.twists.has(twist.id)) continue;
-      if (rules.problem && used.problems.has(problemKey)) continue;
+      if (used.fingerprints.has(fingerprint)) return;
+      if (rules.focus && used.focuses.has(`${domain}.${focus}`)) return;
+      if (rules.audience && used.audiences.has(audience)) return;
+      if (rules.mechanic && used.mechanics.has(mechanic.id)) return;
+      if (rules.twist && used.twists.has(twist.id)) return;
+      if (rules.problem && used.problems.has(problemKey)) return;
       // The first step belongs to the corner, so two cards out of one corner
       // print the same instruction twice. On screen that is the clearest
       // possible signal that a batch is one idea wearing two names.
-      if (rules.step && used.steps.has(focusDef.build)) continue;
-      if (rules.fresh && shownProblems.has(problemKey)) continue;
-      if (!rules.seenOk && used.titles.has(title)) continue;
-      if (!rules.seenOk && seen.has(fingerprint)) continue;
+      if (rules.step && used.steps.has(focusDef.build)) return;
+      if (rules.fresh && shownProblems.has(problemKey)) return;
+      if (!rules.seenOk && used.titles.has(title)) return;
+      if (!rules.seenOk && seen.has(fingerprint)) return;
       if (rules.seenOk && seen.has(fingerprint)) exhausted = true;
 
       used.fingerprints.add(fingerprint);
@@ -501,23 +499,74 @@ export function generateIdeas(
       used.steps.add(focusDef.build);
 
       drafts.push({ domain, focus, problem, audience, mechanic: mechanic.id, twist: twist.id, title, fingerprint });
+  }
+
+  // The described corner walks the whole ladder on its own before anything
+  // else is drafted.
+  //
+  // Sharing the ladder with the general search let one strict pass give the
+  // slot away for good. Once a corner's three problems had all been shown
+  // once, every early pass rejected it, a neighbour took the first slot, and
+  // the batch went out with nothing in it about the thing that was typed,
+  // while the page above still said the first one answered it head on.
+  if (anchor) {
+    for (const rules of passes) {
+      if (drafts.length) break;
+      for (let i = 0; i < 400 && !drafts.length; i++) attempt(rules, anchor);
     }
   }
 
+  for (const rules of passes) {
+    if (drafts.length >= count) break;
+    for (let i = 0; i < 1200 && drafts.length < count; i++) attempt(rules);
+  }
+
+  // What a corner holds, where it goes and how to start are written once per
+  // corner, so a batch forced to draw twice from the same one would print all
+  // three of those sentences twice. The second card says the parts that are
+  // its own and stays quiet about the rest.
+  const cornersSeen = new Set<string>();
   const spin = Math.floor(r() * 5);
-  const ideas = drafts.map((draft, i) => buildIdea(p, draft, spin + i));
+  const ideas = drafts.map((draft, i) => {
+    const corner = `${draft.domain}:${draft.focus}`;
+    const repeat = cornersSeen.has(corner);
+    cornersSeen.add(corner);
+    return buildIdea(p, draft, spin + i, repeat);
+  });
   return { ideas, exhausted };
+}
+
+/**
+ * The subject, when it is not the problem sentence again.
+ *
+ * "It works with hours of live footage and the few moments inside it" says
+ * nothing next to "pull the moments worth posting out of a four-hour stream",
+ * and a card that repeats itself reads as padding. Where the two do not
+ * overlap it is the line that says what the software actually holds, which is
+ * the difference between "notice which members are drifting off" and knowing
+ * that the members are a small community's.
+ */
+function usableSubject(subject: string, problem: string): string | undefined {
+  const haystack = problem.toLowerCase();
+  const shared = subject
+    .toLowerCase()
+    .split(/[^a-z]+/)
+    .filter((w) => w.length > 4)
+    .some((w) => haystack.includes(w.slice(0, Math.max(4, w.length - 2))));
+  return shared ? undefined : subject;
 }
 
 /**
  * The idea, in words anyone can read.
  *
- * Three sentences: what the thing is and who it is for, how it works, and the
- * one thing that makes it unusual. Then the first step, which is the only part
- * that tells someone what to actually do next. No stack, no reasoning about the
- * person, and no product-design vocabulary.
+ * What it is, who it is for and what it does, then what it holds, then how it
+ * works, then the one thing that makes it unusual, then where it goes once the
+ * first version runs. The last of those is the only part that could not be
+ * guessed from the heading, and the whole point of the paragraph is that every
+ * sentence says something about *this* idea rather than about software in
+ * general. No stack, no reasoning about the person, no product-design words.
  */
-function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
+function buildIdea(p: Profile, draft: Draft, index = 0, repeatOfCorner = false): Idea {
   const d = DOMAIN_BY_ID.get(draft.domain)!;
   const focus = d.focuses.find((f) => f.id === draft.focus)!;
   const mechanic = MECHANIC_BY_ID.get(draft.mechanic)!;
@@ -530,12 +579,13 @@ function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
   // Three ideas that all open "A phone app that helps X" read as one idea
   // three times, however different the rest of the sentence is.
   const lower = `${thing.charAt(0).toLowerCase()}${thing.slice(1)}`;
+  // Every opening names who it is for. The one that did not read as a product
+  // with no customer, which is the sentence a card can least afford.
   const openings = [
     `${thing} that helps ${who} ${problem}.`,
     `${thing} to ${problem}, built for ${who}.`,
     `For ${who}: ${lower} to ${problem}.`,
     `${thing} that lets ${who} ${problem}.`,
-    `${thing} to ${problem}.`,
   ];
 
   // Their own words go in every other card. On all three it turns into a
@@ -553,13 +603,22 @@ function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
     ? topicOpenings[Math.floor(index / 2) % topicOpenings.length]
     : openings[index % openings.length];
 
+  const subject = repeatOfCorner ? undefined : usableSubject(focus.subject, problem);
+  const holds = subject ? `It works with ${subject}. ` : "";
+  // Where it goes once the first version runs. Concrete, and tied to this
+  // corner rather than to software in general, which is what stops the last
+  // sentence of a card from being interchangeable with any other card's.
+  const later = repeatOfCorner
+    ? ""
+    : ` Later: ${focus.stretch.charAt(0).toLowerCase()}${focus.stretch.slice(1)}`;
+
   return {
     id: draft.fingerprint,
     title: draft.title,
-    pitch: `${line} ${mechanic.plain} ${twist.sentence}`,
+    pitch: `${line} ${holds}${mechanic.plain} ${twist.sentence}${later}`,
     // The one thing that makes a card worth more than the sentence someone
     // arrived with: something to open an editor and do tonight.
-    firstStep: focus.build,
+    firstStep: repeatOfCorner ? undefined : focus.build,
     slots: {
       domain: draft.domain,
       focus: draft.focus,
