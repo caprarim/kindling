@@ -81,8 +81,10 @@ export type Idea = {
   /** Deterministic fingerprint of the slot combination. Also the dedupe key. */
   id: string;
   title: string;
-  /** The whole idea in plain words. This is all anyone is shown. */
+  /** The whole idea in plain words. */
   pitch: string;
+  /** The first thing to actually build, tied to the subject. */
+  firstStep?: string;
   /** Slot ids kept for near-duplicate detection and "more like this". */
   slots: {
     domain: string;

@@ -190,7 +190,7 @@ export function Flow() {
                 }}
               />
               <FieldDescription className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <span>Everything after this is built from these words.</span>
+                <span>These words aim the search. What comes back sits near them, not on top of them.</span>
                 <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[0.7rem] text-muted-foreground">
                   Enter
                 </kbd>

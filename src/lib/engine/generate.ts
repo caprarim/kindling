@@ -1,4 +1,4 @@
-import { effectiveDomains } from "./questions";
+import { effectiveDomains, reading } from "./questions";
 import {
   DOMAIN_BY_ID,
   FOCUS_AUDIENCES,
@@ -126,6 +126,35 @@ function twistsFor(domain: string, focus: string, base: { t: (typeof TWISTS)[num
   return pool.map(({ t, w }) => ({ t, w: w * (hits(t.suits) ? 2.2 : 1) }));
 }
 
+/**
+ * The corner a description landed on, when nobody ever chose one.
+ *
+ * "A habit tracker" reads as Daily habits, and three ideas out of that one
+ * corner are three ways of writing down the words that were typed. Reading it
+ * is a starting point, not an instruction. The corner is kept as an anchor so
+ * one idea answers the description head on, and the rest of the area opens up
+ * around it so the other two are somewhere the person had not already been.
+ *
+ * A corner picked by hand is not an anchor. Tapping "Daily habits" off a grid
+ * is a request for daily habits, and widening it would be ignoring the answer.
+ */
+export function describedCorner(p: Profile): { domain: string; focus: string } | undefined {
+  if (!p.ideaText || !p.focuses.length) return undefined;
+  const derived = reading(p.ideaText).focuses;
+  if (!derived.length || !p.focuses.every((f) => derived.includes(f))) return undefined;
+  const [domain, focus] = p.focuses[0].split(":");
+  return DOMAIN_BY_ID.get(domain)?.focuses.some((f) => f.id === focus)
+    ? { domain, focus }
+    : undefined;
+}
+
+/** Every corner of the areas these corners belong to. */
+function widen(chosen: { domain: string; focus: string }[]) {
+  return [...new Set(chosen.map((c) => c.domain))].flatMap((d) =>
+    (DOMAIN_BY_ID.get(d)?.focuses ?? []).map((f) => ({ domain: d, focus: f.id })),
+  );
+}
+
 /** `domain:focus` pairs the person is in the market for. */
 function focusPool(p: Profile, seen?: Set<string>): { domain: string; focus: string }[] {
   const chosen = p.focuses.length
@@ -137,11 +166,17 @@ function focusPool(p: Profile, seen?: Set<string>): { domain: string; focus: str
         (DOMAIN_BY_ID.get(d)?.focuses ?? []).map((f) => ({ domain: d, focus: f.id })),
       );
 
+  if (!p.focuses.length) return chosen;
+
+  // A corner nobody chose was inferred from a sentence, so the whole area is
+  // in play from the first batch rather than only once the corner runs dry.
+  if (describedCorner(p)) return widen(chosen);
+
   // One corner holds only a handful of problems, and a batch uses all of them
   // at once. Asking for three more then returns the same three headings for
   // ever. Once the corner is spent the neighbouring corners of the same area
   // open up, which keeps the ideas on the subject without repeating them.
-  if (!p.focuses.length || !seen?.size) return chosen;
+  if (!seen?.size) return chosen;
 
   const shown = new Set<string>();
   for (const id of seen) {
@@ -160,9 +195,7 @@ function focusPool(p: Profile, seen?: Set<string>): { domain: string; focus: str
   });
   if (!spent) return chosen;
 
-  return [...new Set(chosen.map((c) => c.domain))].flatMap((d) =>
-    (DOMAIN_BY_ID.get(d)?.focuses ?? []).map((f) => ({ domain: d, focus: f.id })),
-  );
+  return widen(chosen);
 }
 
 function audiencePool(p: Profile, domain: string, focus?: string): string[] {
@@ -277,6 +310,10 @@ export function generateIdeas(
   salt = "",
 ): GenerateResult {
   const focuses = focusPool(p, seen);
+  // The corner a description landed on. The first idea of every batch is taken
+  // from it, so opening the area up never costs someone the thing they asked
+  // about: one card is on the nose and the other two are somewhere new.
+  const anchor = describedCorner(p);
   const mechanics = mechanicPool(p);
   const twists = twistPool(p);
   const byCorner = new Map<string, ReturnType<typeof twistsFor>>();
@@ -327,7 +364,7 @@ export function generateIdeas(
     if (drafts.length >= count) break;
 
     for (let i = 0; i < 1200 && drafts.length < count; i++) {
-      const { domain, focus } = pick(focuses, r);
+      const { domain, focus } = anchor && !drafts.length && i < 600 ? anchor : pick(focuses, r);
       const focusDef = DOMAIN_BY_ID.get(domain)?.focuses.find((f) => f.id === focus);
       if (!focusDef) continue;
 
@@ -385,9 +422,10 @@ export function generateIdeas(
 /**
  * The idea, in words anyone can read.
  *
- * Three sentences and nothing else: what the thing is and who it is for, how it
- * works, and the one thing that makes it unusual. No stack, no steps, no
- * reasoning about the person, and no product-design vocabulary.
+ * Three sentences: what the thing is and who it is for, how it works, and the
+ * one thing that makes it unusual. Then the first step, which is the only part
+ * that tells someone what to actually do next. No stack, no reasoning about the
+ * person, and no product-design vocabulary.
  */
 function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
   const d = DOMAIN_BY_ID.get(draft.domain)!;
@@ -429,6 +467,9 @@ function buildIdea(p: Profile, draft: Draft, index = 0): Idea {
     id: draft.fingerprint,
     title: draft.title,
     pitch: `${line} ${mechanic.plain} ${twist.sentence}`,
+    // The one thing that makes a card worth more than the sentence someone
+    // arrived with: something to open an editor and do tonight.
+    firstStep: focus.build,
     slots: {
       domain: draft.domain,
       focus: draft.focus,

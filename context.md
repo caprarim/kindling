@@ -20,7 +20,16 @@ areas they cannot answer.
 
 Ideas are assembled from a taxonomy of twelve domains, each with four focuses
 (media has five), crossed with a shape and a constraint. Every idea carries a
-deterministic fingerprint, so nothing is ever shown twice.
+deterministic fingerprint, so nothing is ever shown twice, and every card ends
+with the first thing to actually build. That last line is what makes a card
+worth more than the sentence someone arrived with.
+
+A corner read out of a description is an anchor, not an instruction. Reading
+"a habit tracker" as Daily habits and then serving three daily-habit ideas is
+the description handed back in three fonts, which is exactly what a user
+reported: "it just told me what I told it". So the first idea of every batch is
+taken from the corner that was read, and the rest of that area opens up around
+it. A corner someone tapped off the grid is left alone: that one is an answer.
 
 Which shape, which audience and which constraint an idea gets is not a free
 choice. Each corner names the shapes that suit it, the people it is actually

@@ -39,8 +39,9 @@ export default function Home() {
         </h1>
 
         <p className="max-w-xl text-[0.95rem]/relaxed text-muted-foreground text-pretty sm:text-lg/relaxed">
-          Made for vibe coders. A few plain questions, each one shaped by the last, then ideas that
-          fit your interests and the time you actually have. No jargon, no test to pass.
+          Made for vibe coders. A few plain questions, each one shaped by the last, then three
+          projects that fit the time you actually have, each with a first step you could do tonight.
+          No jargon, no test to pass.
         </p>
       </header>
 

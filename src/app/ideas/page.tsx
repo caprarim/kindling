@@ -10,6 +10,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { IdeaCard } from "@/components/idea-card";
 import { useKindling } from "@/lib/store";
+import { describedCorner } from "@/lib/engine/generate";
+import { DOMAIN_BY_ID } from "@/lib/engine/taxonomy";
+import type { Profile } from "@/lib/engine/types";
+
+/**
+ * What was done with the words someone typed.
+ *
+ * Without this line a batch reads as the description handed back, because the
+ * one thing the page never said was that it went looking somewhere else too.
+ */
+function readBack(profile: Profile): string {
+  const said = profile.ideaText?.trim();
+  const corner = describedCorner(profile);
+  const area = corner ? DOMAIN_BY_ID.get(corner.domain)?.label : undefined;
+
+  if (said && area) {
+    const quoted = said.length > 70 ? `${said.slice(0, 70).trimEnd()}…` : said;
+    return `You said “${quoted}”. The first one answers that head on. The other two come from elsewhere in ${area}, in case the better project was next door. Each has a first step, so there is something to do tonight.`;
+  }
+  return "Every one is a real project with a first step, so there is something to open an editor and do tonight. Nothing here is a repeat of anything shown before.";
+}
 
 export default function IdeasPage() {
   const router = useRouter();
@@ -27,7 +48,7 @@ export default function IdeasPage() {
       <div className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
           <h1 className="font-heading text-[1.7rem] leading-[1.15] font-semibold tracking-tight text-balance sm:text-4xl">
-            Three ideas, shaped by every answer
+            Three projects you could start tonight
           </h1>
 
           <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
@@ -49,6 +70,10 @@ export default function IdeasPage() {
             </Button>
           </div>
         </div>
+
+        <p className="max-w-3xl text-sm/relaxed text-muted-foreground text-pretty sm:text-base/relaxed">
+          {readBack(profile)}
+        </p>
       </div>
 
       {exhausted ? (

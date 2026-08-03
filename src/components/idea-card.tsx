@@ -4,6 +4,7 @@ import { BookmarkIcon, Trash2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
+  CardContent,
   CardDescription,
   CardFooter,
   CardHeader,
@@ -36,6 +37,19 @@ export function IdeaCard({
           {idea.pitch}
         </CardDescription>
       </CardHeader>
+
+      {idea.firstStep ? (
+        <CardContent>
+          <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+            <p className="text-[0.7rem] font-medium tracking-wide text-primary uppercase">
+              Start here
+            </p>
+            <p className="mt-1 text-sm/relaxed text-card-foreground text-pretty">
+              {idea.firstStep}
+            </p>
+          </div>
+        </CardContent>
+      ) : null}
 
       <CardFooter className="mt-auto flex-wrap gap-2">
         <Button
